@@ -17,12 +17,12 @@ GIF показывают тот же интерфейс на демонстра�
 ```powershell
 $installer = Join-Path $env:TEMP 'Update-QuickWave.ps1'
 Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/latest/download/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Install -Watch
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Install
 ```
 
-Перезапусти Spotify и открой **QuickWave** в боковой панели. Оставь окно PowerShell открытым, чтобы оно проверяло GitHub каждые 5 минут. Новая версия скачивается с проверкой SHA-256 и применяется через Spicetify. После обновления перезапусти Spotify.
+Перезапусти Spotify и открой **QuickWave** в боковой панели. Установщик один раз регистрирует скрытую задачу Windows. После этого закрой PowerShell. При каждом запуске Spotify помощник проверяет GitHub. Если есть обновление, оно скачивается и применяется в фоне. Новая версия загрузится при следующем запуске Spotify.
 
-Вручную можно распаковать ZIP, скопировать папку `quickwave` в `CustomApps` рядом с файлом из `spicetify -c`, затем выполнить `spicetify config custom_apps quickwave` и `spicetify apply`. В архиве также есть `Start-QuickWave.cmd` для запуска проверки обновлений.
+Вручную можно распаковать ZIP, скопировать папку `quickwave` в `CustomApps` рядом с файлом из `spicetify -c`, затем выполнить `spicetify config custom_apps quickwave` и `spicetify apply`. Для фонового обновления выполни установку из PowerShell один раз.
 
 ## Возможности
 
