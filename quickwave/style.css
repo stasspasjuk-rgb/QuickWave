@@ -134,7 +134,26 @@
 .qw-launch-ring{position:absolute;left:50%;top:50%;width:min(52%,410px);aspect-ratio:1;opacity:0;border:2px solid var(--wave-b);border-radius:48%;pointer-events:none}
 .qw-hero[data-launching=true] .qw-launch-ring{animation:qw-ring .95s ease-out both}
 .qw-hero[data-launching=true] .qw-hero-content{animation:qw-enter .5s ease both}
-.qw-hero[data-launching=true] .qw-orb{animation:qw-ignite .95s ease-out both}
 @keyframes qw-ring{0%{opacity:0;transform:translate(-50%,-50%) scale(.42)}35%{opacity:.5}100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}}
-@keyframes qw-ignite{0%{opacity:.32;transform:scale(.78)}48%{opacity:1;transform:scale(1.15)}100%{opacity:.84;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.qw-theme-dialog[open],.qw-preview-orb,.qw-hero[data-launching=true] .qw-launch-ring{animation:none!important}}
+.qw-app{--qw-surface:color-mix(in srgb,var(--wave-base) 55%,#19171e);--qw-border:color-mix(in srgb,var(--wave-a) 30%,#29232e);--qw-accent:color-mix(in srgb,var(--wave-b) 62%,#fff);border-radius:28px}
+.qw-app[data-background=theme]{background:radial-gradient(ellipse at top,var(--wave-base),transparent 72%),color-mix(in srgb,var(--wave-base) 52%,#131216)}
+.qw-app[data-background=dark]{background:#17171b}
+.qw-panel,.qw-track,.qw-theme-dialog,.qw-chip,.qw-status,.qw-form input{background:var(--qw-surface);border-color:var(--qw-border)}
+.qw-chip[aria-pressed=true],.qw-play{background:var(--qw-accent);color:#161419;border-color:var(--qw-accent)}
+.qw-chip:hover{background:color-mix(in srgb,var(--qw-surface) 73%,var(--wave-a))}
+.qw-chip[aria-pressed=true]:hover,.qw-play:hover{background:color-mix(in srgb,var(--qw-accent) 90%,white)}
+.qw-app .qw-check input{accent-color:var(--qw-accent)}
+.qw-orb,.qw-orb[data-active=true]{animation:none!important;filter:blur(calc(22px - var(--qw-pulse,0)*8px)) hue-rotate(var(--qw-hue,0deg))}
+.qw-orb[data-active=false]{opacity:.16}
+.qw-orb[data-active=true]{opacity:.94}
+.qw-theme-dialog h3{font-size:14px;margin:15px 0 8px}
+.qw-update-dialog{text-align:center}
+.qw-update-dialog .qw-chips{justify-content:center;margin-top:15px}
+.qw-update-mark{width:66px;height:66px;margin:0 auto 12px;display:grid;place-items:center;color:var(--qw-accent)}
+.qw-update-mark[data-running=true] svg{stroke-dasharray:79 55;animation:qw-spinner 1s linear infinite}
+.qw-update-mark[data-done=true] path{stroke-dasharray:30;animation:qw-checkmark .48s ease-out both}
+@keyframes qw-spinner{to{transform:rotate(360deg)}}
+@keyframes qw-checkmark{from{stroke-dashoffset:30}to{stroke-dashoffset:0}}
+.qw-update-offer{margin-bottom:12px}
+@media(prefers-reduced-motion:reduce){.qw-update-mark svg,.qw-update-mark path{animation:none!important}}

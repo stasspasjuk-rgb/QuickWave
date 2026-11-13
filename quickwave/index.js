@@ -10,7 +10,17 @@ async function startSongWave(track) {
   await Spicetify.Player.playUri(playlist);
 }
 
-const quickWaveVersion = "2.4.1";
+const quickWaveVersion = "2.4.2";
+
+function waveBeat(position, beat, loudness, volume) {
+  if (!beat) return 0;
+  const age = position - beat.start;
+  const duration = Math.min(.38, (beat.duration || .5) * .88);
+  if (age < 0 || age >= duration) return 0;
+  const strength = Number.isFinite(loudness) ? Math.max(.25, Math.min(1, (loudness + 42) / 42)) : .65;
+  const attack = Math.min(1, age / .035);
+  return Math.sin(attack * Math.PI / 2) * (1 - age / duration) ** 1.5 * strength * Math.sqrt(volume);
+}
 
 async function quickWaveRelease() {
   const response = await fetch("https://api.github.com/repos/stasspasjuk-rgb/QuickWave/releases/latest", {signal:AbortSignal.timeout(12000)});
@@ -40,7 +50,9 @@ function QuickWavePage() {
   const [theme, setTheme] = useState(()=>Spicetify.LocalStorage.get("quickwave:theme")||"violet");
   const [showTheme, setShowTheme] = useState(false);
   const [previewTheme, setPreviewTheme] = useState(theme);
-  const [launching, setLaunching] = useState(false);
+  const [background, setBackground] = useState(()=>Spicetify.LocalStorage.get("quickwave:background")||"theme");
+  const [previewBackground, setPreviewBackground] = useState(background);
+  const [launching, setLaunching] = useState(true);
   const [notice, setNotice] = useState("");
   const [release, setRelease] = useState(null);
   const [updateStage, setUpdateStage] = useState("");
@@ -48,7 +60,8 @@ function QuickWavePage() {
   const updateBusy = useRef(false);
   const launchTimer = useRef(null);
   const themeDialog = useRef(null);
-  useEffect(()=>()=>clearTimeout(launchTimer.current),[]);
+  const updateDialog = useRef(null);
+  useEffect(()=>{ launchTimer.current=setTimeout(()=>setLaunching(false),1050); return ()=>clearTimeout(launchTimer.current); },[]);
   useEffect(()=>{
     const replay=()=>{
       clearTimeout(launchTimer.current);
@@ -61,10 +74,10 @@ function QuickWavePage() {
   async function checkUpdates(quiet=false) {
     if(updateBusy.current)return;
     updateBusy.current=true;
-    if(!quiet)setUpdateStage("Проверяем GitHub…");
+    if(!quiet){updateDialog.current?.showModal();setUpdateStage("Проверяем GitHub…");}
     try {
       const found=await (quiet && globalThis.QuickWave?.startupRelease || quickWaveRelease());
-      if(found && (!quiet || sessionStorage.getItem("quickwave:dismissed")!==found))setRelease(found);
+      if(!quiet || (found && sessionStorage.getItem("quickwave:dismissed")!==found))setRelease(found);
       setUpdateStage(!found&&!quiet?"Установлена последняя версия":"");
     } catch {
       if(!quiet)setUpdateStage("GitHub недоступен. Попробуй позже.");
@@ -87,7 +100,7 @@ function QuickWavePage() {
   useEffect(()=>{ void checkUpdates(true); },[]);
   useEffect(()=>{
     const player=Spicetify.Player;
-    if(!orb.current || typeof requestAnimationFrame!=="function" || matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+    if(!(state?.active||notice==="Волна по песне включена") || !orb.current || typeof requestAnimationFrame!=="function" || matchMedia("(prefers-reduced-motion: reduce)").matches)return;
     let cancelled=false, frame, beats=[], segments=[], beatIndex=0, segmentIndex=0, lastPos=0, lastPaint=-1, lastPlaying;
     if(track?.uri && Spicetify.getAudioData){
       Promise.resolve().then(()=>Spicetify.getAudioData(track.uri)).then(data=>{
@@ -112,17 +125,15 @@ function QuickWavePage() {
       const beat=beats[beatIndex];
       const volume=Math.min(1,Math.max(0,(Number(player?.getVolume?.())||0)));
       const loudness=segments[segmentIndex]?.loudness_max;
-      const gain=Number.isFinite(loudness)?Math.min(1,Math.max(0,(loudness+35)/35)):0.55;
-      const age=beat ? position-beat.start : -1;
-      const duration=Math.min(.25,(beat?.duration||.5)*.6);
-      const pulse=age>=0&&age<duration ? (1-age/duration)**2*Math.sqrt(volume)*gain : 0;
+      const pulse=waveBeat(position,beat,loudness,volume);
       node.style.setProperty("--qw-pulse",pulse.toFixed(3));
-      node.style.setProperty("--qw-spin",`${position*5+pulse*9}deg`);
+      node.style.setProperty("--qw-spin",`${-12+pulse*16}deg`);
+      node.style.setProperty("--qw-hue",`${Math.sin(beatIndex/18)*pulse*25}deg`);
       node.style.setProperty("--qw-shape",`${(44+pulse*25).toFixed(1)}%`);
     };
     frame=requestAnimationFrame(paint);
     return ()=>{cancelled=true;cancelAnimationFrame(frame);};
-  },[track?.uri]);
+  },[track?.uri,state?.active,notice==="Волна по песне включена"]);
   useEffect(()=>{
     const player=Spicetify.Player;
     const update=()=>setTrack(player?.data?.item);
@@ -179,29 +190,37 @@ function QuickWavePage() {
       h("small", null, track.reason));
   }
 
-  return h("main", { className: "qw-app", "data-theme": showTheme?previewTheme:theme },
+  const updateRunning=/^Проверяем|^Скачиваем|^Перезапускаем/.test(updateStage);
+  const upToDate=updateStage==="Установлена последняя версия";
+  return h("main", { className: "qw-app", "data-theme": showTheme?previewTheme:theme, "data-background":showTheme?previewBackground:background },
     h("div",{className:"qw-toolbar"},
       h("a",{className:"qw-chip qw-telegram",href:"https://t.me/QuickDeveloper_bot",target:"_blank",rel:"noopener noreferrer"},
         h("svg",{width:20,height:20,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,"aria-hidden":true},h("path",{d:"M3 11l18-7-4 16-6-5-3 3 1-5 8-6-10 5z",strokeLinejoin:"round"})),"Telegram"),
-      h("button",{className:"qw-chip",type:"button",onClick:()=>{setPreviewTheme(theme);setShowTheme(true);themeDialog.current.showModal();}},icon("settings"),"Оформление"),
+      h("button",{className:"qw-chip",type:"button",onClick:()=>{setPreviewTheme(theme);setPreviewBackground(background);setShowTheme(true);themeDialog.current.showModal();}},icon("settings"),"Оформление"),
       h("button",{className:"qw-chip",type:"button",onClick:()=>checkUpdates()},icon("update"),"Проверить обновления")),
     h("dialog",{className:"qw-theme-dialog",ref:themeDialog,"aria-labelledby":"qw-theme-title",onClose:()=>setShowTheme(false)},
       h("h2",{id:"qw-theme-title"},"Оформление"),
       h("div",{className:"qw-preview"},h("div",{className:"qw-preview-orb","aria-hidden":true}),h("strong",null,"Моя волна")),
       h("div",{className:"qw-chips"},chips(Object.fromEntries(waveThemes.map((key,i)=>[key,["Лиловая","Океан","Закат","Лес"][i]])),previewTheme,setPreviewTheme)),
+      h("h3",null,"Фон"),
+      h("div",{className:"qw-chips"},chips({theme:"Под цвет темы",dark:"Графит",spotify:"Фон Spotify"},previewBackground,setPreviewBackground)),
       h("div",{className:"qw-chips qw-theme-actions"},
-        h("button",{className:"qw-chip",type:"button",onClick:()=>{setTheme(previewTheme);Spicetify.LocalStorage.set("quickwave:theme",previewTheme);themeDialog.current.close();}},"Применить"),
+        h("button",{className:"qw-chip",type:"button",onClick:()=>{setTheme(previewTheme);setBackground(previewBackground);Spicetify.LocalStorage.set("quickwave:theme",previewTheme);Spicetify.LocalStorage.set("quickwave:background",previewBackground);themeDialog.current.close();}},"Применить"),
         h("button",{className:"qw-chip",type:"button",onClick:()=>themeDialog.current.close()},"Отмена"))),
-    !release && updateStage && h("p",{className:"qw-message",role:"status"},updateStage),
-    release && h("section",{className:"qw-update","data-busy":/^Скачиваем|^Перезапускаем/.test(updateStage),role:"region","aria-label":"Обновление QuickWave"},
-      h("strong",null,`Доступно обновление QuickWave ${release.slice(1)}`),
-      updateStage && h("p",{role:"status"},updateStage),
+    release && h("button",{className:"qw-chip qw-update-offer",type:"button",onClick:()=>updateDialog.current.showModal()},`Доступно обновление QuickWave ${release.slice(1)}`),
+    h("dialog",{className:"qw-theme-dialog qw-update-dialog",ref:updateDialog,"aria-labelledby":"qw-update-title",
+      onCancel:event=>{if(updateRunning)event.preventDefault();}},
+      h("div",{className:"qw-update-mark","data-running":updateRunning,"data-done":upToDate,"aria-hidden":true},
+        h("svg",{viewBox:"0 0 48 48",width:56,height:56,fill:"none",stroke:"currentColor",strokeWidth:3,strokeLinecap:"round",strokeLinejoin:"round"},
+          h("circle",{cx:24,cy:24,r:20}),upToDate&&h("path",{d:"M14 24l7 7 13-14"}))),
+      h("h2",{id:"qw-update-title"},release?`QuickWave ${release.slice(1)} доступен`:"Обновления QuickWave"),
+      h("p",{role:"status"},updateStage||(release?"Обновление готово к установке":"")),
       h("div",{className:"qw-chips"},
-        h("button",{className:"qw-chip",type:"button",disabled:/^Скачиваем|^Перезапускаем/.test(updateStage),onClick:installUpdate},"Обновить"),
-        h("button",{className:"qw-chip",type:"button",disabled:/^Скачиваем|^Перезапускаем/.test(updateStage),onClick:()=>{sessionStorage.setItem("quickwave:dismissed",release);setRelease(null);setUpdateStage("");}},"Позже"))),
+        release&&h("button",{className:"qw-chip",type:"button",disabled:updateRunning,onClick:installUpdate},"Обновить"),
+        h("button",{className:"qw-chip",type:"button",disabled:updateRunning,onClick:()=>{if(release){sessionStorage.setItem("quickwave:dismissed",release);setRelease(null);}updateDialog.current.close();}},release?"Позже":"Готово"))),
     h("section", { className: "qw-hero", "data-launching":launching, "aria-labelledby": "qw-title" },
       h("div",{className:"qw-launch-ring","aria-hidden":true}),
-      h("div", { className: "qw-orb", ref:orb, "data-active": Boolean(state?.active), "aria-hidden": true }),
+      h("div", { className: "qw-orb", ref:orb, "data-active": Boolean(state?.active||notice==="Волна по песне включена"), "aria-hidden": true }),
       h("div", { className: "qw-hero-content" },
         h("h1", { id: "qw-title" }, "Моя волна"),
         h("button", { type: "button", className: "qw-play", disabled: !state, onClick: () => {
