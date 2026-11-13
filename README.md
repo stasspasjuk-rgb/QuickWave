@@ -4,7 +4,7 @@ QuickWave открывается внутри Spotify Desktop из боково�
 
 [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/latest/download/QuickWave-Spicetify.zip) · [История версий](https://github.com/stasspasjuk-rgb/QuickWave/releases)
 
-| Подбор и оценки | Темы и оформление |
+| Подбор и оценки (2.0) | Темы и оформление (2.0) |
 | --- | --- |
 | ![Подбор треков и оценки](media/wave.gif) | ![Переключение тем](media/settings.gif) |
 
@@ -23,6 +23,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Install
 Перезапусти Spotify и открой **QuickWave** в боковой панели. Установщик один раз регистрирует скрытую задачу Windows. После этого закрой PowerShell. При каждом запуске Spotify помощник проверяет GitHub. Если есть обновление, оно скачивается и применяется в фоне. Новая версия загрузится при следующем запуске Spotify.
 
 Вручную можно распаковать ZIP, скопировать папку `quickwave` в `CustomApps` рядом с файлом из `spicetify -c`, затем выполнить `spicetify config custom_apps quickwave` и `spicetify apply`. Для фонового обновления выполни установку из PowerShell один раз.
+
+## Волна по песне
+
+Включи песню, зайди в QuickWave и нажми **Волна по песне**. QuickWave берёт текущий трек, показывает совпадения из своего каталога и пытается открыть штатное радио трека через меню Spotify. Если клиент не даёт открыть это меню автоматически, нажми **Открыть трек в Spotify** и выбери радио через **⋯**. Подборка **Моя подборка** обновляется на месте.
 
 ## Возможности
 
