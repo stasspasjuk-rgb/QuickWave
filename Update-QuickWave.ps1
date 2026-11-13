@@ -1,64 +1,53 @@
-param([switch]$CheckOnce)
-
+param([switch]$Install, [switch]$Watch)
 $ErrorActionPreference = 'Stop'
-$repository = 'stasspasjuk-rgb/QuickWave'
-$page = Join-Path $PSScriptRoot 'QuickWave.html'
-$versionPattern = '<meta name="quickwave-version" content="(\d+\.\d+\.\d+)">'
-
-function Get-QuickWaveVersion($path) {
-    $match = [regex]::Match([IO.File]::ReadAllText($path), $versionPattern)
-    if (!$match.Success) { throw 'QuickWave.html version is missing' }
-    [version]$match.Groups[1].Value
-}
+$repo = 'stasspasjuk-rgb/QuickWave'
+$config = spicetify -c
+if ($LASTEXITCODE -ne 0 -or !$config) { throw 'Install Spicetify first.' }
+$apps = Join-Path (Split-Path -Parent $config) 'CustomApps'
+$app = Join-Path $apps 'quickwave'
+$manifest = Join-Path $app 'manifest.json'
 
 function Update-QuickWave {
-    $installed = Get-QuickWaveVersion $page
-    $headers = @{ 'User-Agent' = 'QuickWave-Updater'; Accept = 'application/vnd.github+json' }
-    $release = Invoke-RestMethod -UseBasicParsing -TimeoutSec 20 -Headers $headers -Uri "https://api.github.com/repos/$repository/releases/latest"
-    if ($release.draft -or $release.prerelease -or $release.tag_name -notmatch '^v(\d+\.\d+\.\d+)$') { return }
-    $available = [version]$Matches[1]
-    if ($available -le $installed) { return }
-    $asset = @($release.assets | Where-Object { $_.name -ceq 'QuickWave.html' })
-    $download = "https://github.com/$repository/releases/download/$($release.tag_name)/QuickWave.html"
-    if ($asset.Count -ne 1 -or $asset[0].browser_download_url -cne $download -or
-        $asset[0].digest -notmatch '^sha256:([0-9a-f]{64})$') {
-        throw 'The release is missing a verified QuickWave.html asset'
+    $release = Invoke-RestMethod -UseBasicParsing -TimeoutSec 20 -Headers @{'User-Agent'='QuickWave-Updater'} -Uri "https://api.github.com/repos/$repo/releases/latest"
+    if ($release.tag_name -notmatch '^v(\d+\.\d+\.\d+)$' -or $release.draft -or $release.prerelease) { return }
+    $version = [version]$Matches[1]
+    if (!$Install -and (Test-Path -LiteralPath $manifest)) {
+        $installed = (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version
+        if ($installed -and [version]$installed -ge $version) { return }
     }
-    $digest = $Matches[1]
-    $temporary = Join-Path $PSScriptRoot ('.quickwave-' + [guid]::NewGuid() + '.tmp')
-    $backup = "$temporary.bak"
+    $asset = @($release.assets | Where-Object name -CEQ 'QuickWave-Spicetify.zip')
+    $url = "https://github.com/$repo/releases/download/$($release.tag_name)/QuickWave-Spicetify.zip"
+    if ($asset.Count -ne 1 -or $asset[0].browser_download_url -cne $url -or $asset[0].digest -notmatch '^sha256:([a-f0-9]{64})$') { throw 'Spicetify release asset unavailable.' }
+    $hash = $Matches[1]
+    $temp = Join-Path ([IO.Path]::GetTempPath()) ("QuickWave-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $temp | Out-Null
+    $zip = Join-Path $temp 'app.zip'
     try {
-        Invoke-WebRequest -UseBasicParsing -TimeoutSec 45 -Uri $download -OutFile $temporary
-        if ((Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash -ne $digest -or
-            (Get-QuickWaveVersion $temporary) -ne $available) { throw 'Release file verification failed' }
-        [IO.File]::Replace($temporary, $page, $backup)
-        Write-Host "QuickWave $available installed. Reload the browser tab to use the new version."
+        Invoke-WebRequest -UseBasicParsing -TimeoutSec 45 -Uri $url -OutFile $zip
+        if ((Get-FileHash -LiteralPath $zip).Hash -ne $hash) { throw 'QuickWave checksum mismatch.' }
+        Expand-Archive -LiteralPath $zip -DestinationPath $temp
+        $source = Join-Path $temp 'quickwave'
+        $metadata = Get-Content -LiteralPath (Join-Path $source 'manifest.json') -Raw | ConvertFrom-Json
+        if ($metadata.version -ne $version.ToString()) { throw 'Unexpected QuickWave version.' }
+        New-Item -ItemType Directory -Path $app -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $source 'index.js') -Destination $app -Force
+        Copy-Item -LiteralPath (Join-Path $source 'manifest.json') -Destination $app -Force
+        spicetify config custom_apps quickwave
+        if ($LASTEXITCODE -ne 0) { throw 'Could not enable QuickWave.' }
+        spicetify -n apply
+        if ($LASTEXITCODE -ne 0) { throw 'Spicetify apply failed. Run spicetify apply to retry.' }
+        Write-Host "QuickWave $version installed. Restart Spotify to load the update."
     } finally {
-        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
-        if ((Test-Path -LiteralPath $page) -and (Test-Path -LiteralPath $backup)) {
-            Remove-Item -LiteralPath $backup -Force
-        }
+        if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
     }
 }
 
-if (!(Test-Path -LiteralPath $page -PathType Leaf)) { throw 'Extract the full QuickWave ZIP before launching' }
-$lockPath = Join-Path $PSScriptRoot '.quickwave-update.lock'
-try {
-    $lock = [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
-} catch [IO.IOException] {
-    if (!$CheckOnce) { Start-Process -FilePath $page }
-    exit
-}
-try {
-    try { Update-QuickWave } catch { Write-Warning $_.Exception.Message }
-    if (!$CheckOnce) {
-        Start-Process -FilePath $page
-        Write-Host 'QuickWave checks GitHub every 5 minutes while this window is open.'
-        while ($true) {
-            Start-Sleep -Seconds 300
-            try { Update-QuickWave } catch { Write-Warning $_.Exception.Message }
-        }
+Update-QuickWave
+if ($Watch) {
+    $Install = $false
+    Write-Host 'Checking GitHub every 5 minutes. Keep this window open.'
+    while ($true) {
+        Start-Sleep -Seconds 300
+        try { Update-QuickWave } catch { Write-Warning $_.Exception.Message }
     }
-} finally {
-    $lock.Dispose()
 }
