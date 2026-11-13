@@ -472,6 +472,28 @@
         emit();
       }
     };
+    if(typeof fetch==="function" && typeof S.showNotification==="function"){
+      globalThis.QuickWave.startupRelease=fetch("https://api.github.com/repos/stasspasjuk-rgb/QuickWave/releases/latest",{signal:AbortSignal.timeout(12000)})
+        .then(response=>{
+          if(!response.ok)throw new Error();
+          return response.json();
+        }).then(release=>{
+          if(release.draft||release.prerelease||!/^v\d+\.\d+\.\d+$/.test(release.tag_name))throw new Error();
+          const installed=[2,4,1];
+          const remote=release.tag_name.slice(1).split(".").map(Number);
+          const first=remote.findIndex((value,index)=>value!==installed[index]);
+          const update=first>=0&&remote[first]>installed[first]?release.tag_name:null;
+          S.showNotification(update?"Доступна новая версия QuickWave "+update.slice(1)+". Открой QuickWave, чтобы обновить.":"Установлена последняя версия QuickWave");
+          return update;
+        }).catch(()=>null);
+    }
+    if(S.Playbar?.Button && S.Platform?.History?.push){
+      new S.Playbar.Button("Открыть QuickWave",'<path d="M2 12h4l3-7 5 14 4-10 2 3h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',()=>{
+        const history=S.Platform.History;
+        if(history.location?.pathname!=="/quickwave")history.push("/quickwave");
+        else globalThis.dispatchEvent(new Event("quickwave:reopen"));
+      });
+    }
     S.Player.addEventListener("songchange", () => { sample(); void feed(); });
     S.Player.addEventListener("onplaypause", sample);
     setInterval(() => { sample(); void checkSaved(); void feed(); }, 2200);

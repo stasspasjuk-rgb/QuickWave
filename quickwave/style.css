@@ -123,3 +123,18 @@
 .qw-update[data-busy=true]{background-image:linear-gradient(105deg,transparent,#ffffff19,transparent);background-size:200% 100%;animation:qw-install 1.3s linear infinite}
 @keyframes qw-install{to{background-position:-200% 0}}
 @media(prefers-reduced-motion:reduce){.qw-app,.qw-hero-content,.qw-track,.qw-update,.qw-orb,.qw-orb[data-active="true"]{animation:none!important}.qw-play,.qw-chip{transition:none}}
+.qw-toolbar>.qw-chip{display:inline-flex;align-items:center;gap:7px}
+.qw-orb,.qw-orb[data-active="true"]{animation:none;rotate:var(--qw-spin,-12deg)}
+.qw-theme-dialog{margin:auto;width:min(430px,calc(100% - 32px));border:1px solid var(--wave-a);background:#21192b;color:#fff;border-radius:22px;padding:20px;box-shadow:0 24px 80px #0009}
+.qw-theme-dialog[open]{animation:qw-enter .28s ease both}
+.qw-theme-dialog::backdrop{background:#100c19aa;backdrop-filter:blur(5px)}
+.qw-preview{position:relative;display:grid;place-items:center;isolation:isolate;overflow:hidden;border-radius:15px;background:var(--wave-base);min-height:125px;margin:10px 0 14px;font-size:26px}
+.qw-preview-orb{position:absolute;z-index:-1;inset:18% 18%;border-radius:45% 60% 55% 40%;background:linear-gradient(125deg,var(--wave-a),var(--wave-b),var(--wave-c));filter:blur(14px);animation:qw-morph 4s ease-in-out infinite alternate}
+.qw-theme-actions{margin-top:16px;justify-content:flex-end}
+.qw-launch-ring{position:absolute;left:50%;top:50%;width:min(52%,410px);aspect-ratio:1;opacity:0;border:2px solid var(--wave-b);border-radius:48%;pointer-events:none}
+.qw-hero[data-launching=true] .qw-launch-ring{animation:qw-ring .95s ease-out both}
+.qw-hero[data-launching=true] .qw-hero-content{animation:qw-enter .5s ease both}
+.qw-hero[data-launching=true] .qw-orb{animation:qw-ignite .95s ease-out both}
+@keyframes qw-ring{0%{opacity:0;transform:translate(-50%,-50%) scale(.42)}35%{opacity:.5}100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}}
+@keyframes qw-ignite{0%{opacity:.32;transform:scale(.78)}48%{opacity:1;transform:scale(1.15)}100%{opacity:.84;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.qw-theme-dialog[open],.qw-preview-orb,.qw-hero[data-launching=true] .qw-launch-ring{animation:none!important}}
