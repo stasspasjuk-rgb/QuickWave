@@ -10,7 +10,7 @@ async function startSongWave(track) {
   await Spicetify.Player.playUri(playlist);
 }
 
-const quickWaveVersion = "2.4.2";
+const quickWaveVersion = "2.4.3";
 
 function waveBeat(position, beat, loudness, volume) {
   if (!beat) return 0;
@@ -60,6 +60,7 @@ function QuickWavePage() {
   const updateBusy = useRef(false);
   const launchTimer = useRef(null);
   const themeDialog = useRef(null);
+  const waveSettings = useRef(null);
   const updateDialog = useRef(null);
   useEffect(()=>{ launchTimer.current=setTimeout(()=>setLaunching(false),1050); return ()=>clearTimeout(launchTimer.current); },[]);
   useEffect(()=>{
@@ -238,12 +239,20 @@ function QuickWavePage() {
           try { await startSongWave(current); setNotice("Волна по песне включена"); }
           catch { setNotice("Не удалось включить волну по песне. Попробуй другой трек."); }
         }},icon("song"),"Волна по песне"),
+        h("button", { className:"qw-chip qw-configure", type:"button", disabled:!state,
+          "aria-haspopup":"dialog", onClick:()=>waveSettings.current.showModal() },icon("settings"),"Настроить"),
         h("span", { className: "qw-status", role: "status" }, notice||status))),
     state && h(Spicetify.React.Fragment, null,
       state.note && h("p", { className: "qw-message", role: "status" }, state.note),
       (state.currentPick || state.pending) && h("section", { className: "qw-grid qw-tracks", "aria-label": "Треки волны" },
         trackCard(state.currentPick, "Сейчас в волне"), trackCard(state.pending, "В очереди Spotify")),
-      h("div", { className: "qw-grid" },
+      h("dialog", { className:"qw-theme-dialog qw-wave-settings", ref:waveSettings, "aria-labelledby":"qw-wave-settings-title",
+        onClose:()=>setConfirm(false) },
+        h("header",{className:"qw-wave-settings-header"},
+          h("div",null,h("h2",{id:"qw-wave-settings-title"},"Настроить волну"),
+            h("p",null,"Выбор применяется к следующему подбору.")),
+          h("button",{className:"qw-chip",type:"button",onClick:()=>waveSettings.current.close()},"Готово")),
+      h("div", { className: "qw-grid qw-settings-grid" },
         h("section", { className: "qw-panel" },
           h("h2", null, "Настроение"),
           h("div", { className: "qw-chips" }, chips(moods, settings.mood, mood => api.settings({ mood })))),
@@ -276,5 +285,5 @@ function QuickWavePage() {
       h("details", { className: "qw-details" },
         h("summary", null, "Как QuickWave выбирает треки"),
         h("p", null, "Лайки, повторы и долгие прослушивания усиливают интерес к артисту. Ранние пропуски снижают оценку трека. Волна ищет музыку в медиатеке и подборках Spotify, а недавно звучавшие треки и артисты получают меньший приоритет."),
-        h("p", null, "Жанр и настроение оцениваются по подборкам Spotify. Настройки влияют на следующее добавление в очередь."))));
+        h("p", null, "Жанр и настроение оцениваются по подборкам Spotify. Настройки влияют на следующее добавление в очередь.")))));
 }

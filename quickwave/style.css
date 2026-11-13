@@ -157,3 +157,10 @@
 @keyframes qw-checkmark{from{stroke-dashoffset:30}to{stroke-dashoffset:0}}
 .qw-update-offer{margin-bottom:12px}
 @media(prefers-reduced-motion:reduce){.qw-update-mark svg,.qw-update-mark path{animation:none!important}}
+.qw-configure{display:inline-flex;align-items:center;gap:8px;padding-inline:16px;background:color-mix(in srgb,var(--qw-accent) 17%,var(--qw-surface));border-color:color-mix(in srgb,var(--qw-accent) 34%,var(--qw-border))}
+.qw-wave-settings{width:min(650px,calc(100% - 32px));max-height:min(82vh,720px);overflow:auto;overscroll-behavior:contain;color-scheme:dark;padding:clamp(15px,3vw,24px)}
+.qw-wave-settings-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--qw-border)}
+.qw-wave-settings-header h2{font-size:clamp(20px,4vw,27px);margin:0 0 4px}
+.qw-wave-settings-header p{margin:0}
+.qw-settings-grid>.qw-panel{background:color-mix(in srgb,var(--qw-surface) 82%,var(--wave-base));min-width:0}
+.qw-wave-settings .qw-details{margin-bottom:0}
