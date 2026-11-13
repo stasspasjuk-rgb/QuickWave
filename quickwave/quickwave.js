@@ -473,16 +473,16 @@
       }
     };
     if(typeof fetch==="function" && typeof S.showNotification==="function"){
-      globalThis.QuickWave.startupRelease=fetch("https://api.github.com/repos/stasspasjuk-rgb/QuickWave/releases/latest",{signal:AbortSignal.timeout(12000)})
+      globalThis.QuickWave.startupRelease=fetch("https://raw.githubusercontent.com/stasspasjuk-rgb/QuickWave/main/release.json",{signal:AbortSignal.timeout(12000)})
         .then(response=>{
           if(!response.ok)throw new Error();
           return response.json();
         }).then(release=>{
-          if(release.draft||release.prerelease||!/^v\d+\.\d+\.\d+$/.test(release.tag_name))throw new Error();
-          const installed=[2,4,5];
-          const remote=release.tag_name.slice(1).split(".").map(Number);
+          if(release.draft||release.prerelease||!/^v\d+\.\d+\.\d+$/.test(release.tag))throw new Error();
+          const installed=[2,4,6];
+          const remote=release.tag.slice(1).split(".").map(Number);
           const first=remote.findIndex((value,index)=>value!==installed[index]);
-          const update=first>=0&&remote[first]>installed[first]?release.tag_name:null;
+          const update=first>=0&&remote[first]>installed[first]?release.tag:null;
           S.showNotification(update?"Доступна новая версия QuickWave "+update.slice(1)+". Открой QuickWave, чтобы обновить.":"Установлена последняя версия QuickWave");
           return update;
         }).catch(()=>null);

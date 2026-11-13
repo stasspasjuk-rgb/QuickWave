@@ -9,18 +9,17 @@ $app = Join-Path $apps 'quickwave'
 $manifest = Join-Path $app 'manifest.json'
 
 function Update-QuickWave {
-    $release = Invoke-RestMethod -UseBasicParsing -TimeoutSec 20 -Headers @{'User-Agent'='QuickWave-Updater'} -Uri "https://api.github.com/repos/$repo/releases/latest"
-    if ($release.tag_name -notmatch '^v(\d+\.\d+\.\d+)$' -or $release.draft -or $release.prerelease) { return }
+    $release = Invoke-RestMethod -UseBasicParsing -TimeoutSec 20 -Headers @{'User-Agent'='QuickWave-Updater'} -Uri "https://raw.githubusercontent.com/$repo/main/release.json"
+    if ($release.tag -notmatch '^v(\d+\.\d+\.\d+)$' -or $release.draft -or $release.prerelease) { return }
     $version = [version]$Matches[1]
-    if ($RequestedVersion -and $release.tag_name -cne $RequestedVersion) { throw 'Release changed. Check for updates again.' }
+    if ($RequestedVersion -and $release.tag -cne $RequestedVersion) { throw 'Release changed. Check for updates again.' }
     if (!$Install -and (Test-Path -LiteralPath $manifest)) {
         $installed = (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version
         if ($installed -and [version]$installed -ge $version) { return }
     }
-    $asset = @($release.assets | Where-Object name -CEQ 'QuickWave-CustomApp.zip')
-    $url = "https://github.com/$repo/releases/download/$($release.tag_name)/QuickWave-CustomApp.zip"
-    if ($asset.Count -ne 1 -or $asset[0].browser_download_url -cne $url -or $asset[0].digest -notmatch '^sha256:([a-f0-9]{64})$') { throw 'Spicetify release asset unavailable.' }
-    $hash = $Matches[1]
+    $url = "https://github.com/$repo/releases/download/$($release.tag)/QuickWave-CustomApp.zip"
+    if ($release.sha256 -notmatch '^[a-f0-9]{64}$') { throw 'Invalid QuickWave release checksum.' }
+    $hash = $release.sha256
     $temp = Join-Path ([IO.Path]::GetTempPath()) ("QuickWave-" + [guid]::NewGuid())
     New-Item -ItemType Directory -Path $temp | Out-Null
     $zip = Join-Path $temp 'app.zip'
