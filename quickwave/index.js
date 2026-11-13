@@ -10,7 +10,7 @@ async function startSongWave(track) {
   await Spicetify.Player.playUri(playlist);
 }
 
-const quickWaveVersion = "2.4.7";
+const quickWaveVersion = "2.4.8";
 
 function waveBeat(position, beat, loudness, volume) {
   if (!beat) return 0;
@@ -97,6 +97,10 @@ function QuickWavePage() {
     } finally { updateBusy.current=false; }
   }
   async function installUpdate() {
+    if (!isWindows) {
+      setUpdateStage("Для обновления запусти установщик из инструкции для macOS и Linux.");
+      return;
+    }
     if(updateBusy.current)return;
     updateBusy.current=true;
     setUpdateStage("Скачиваем и устанавливаем обновление…");
@@ -196,6 +200,7 @@ function QuickWavePage() {
     api.settings({ genres: genres.includes(genre) ? genres.filter(g => g !== genre) : [...genres, genre] });
   }
 
+  const isWindows = /win/i.test(globalThis.navigator?.userAgentData?.platform || globalThis.navigator?.platform || "");
   const updateRunning=/^Проверяем|^Скачиваем|^Перезапускаем/.test(updateStage);
   const upToDate=updateStage==="Установлена последняя версия";
   const color=showTheme?previewColor:waveColor;
@@ -227,7 +232,9 @@ function QuickWavePage() {
       h("h2",{id:"qw-update-title"},release?`QuickWave ${release.slice(1)} доступен`:"Обновления QuickWave"),
       h("p",{role:"status"},updateStage||(release?"Обновление готово к установке":"")),
       h("div",{className:"qw-chips"},
-        release&&h("button",{className:"qw-chip",type:"button",disabled:updateRunning,onClick:installUpdate},"Обновить"),
+        release&&(isWindows
+          ? h("button",{className:"qw-chip",type:"button",disabled:updateRunning,onClick:installUpdate},"Обновить")
+          : h("a",{className:"qw-chip",href:"https://github.com/stasspasjuk-rgb/QuickWave#macos-и-linux",target:"_blank",rel:"noopener noreferrer"},"Как обновить")),
         h("button",{className:"qw-chip",type:"button",disabled:updateRunning,onClick:()=>{if(release){sessionStorage.setItem("quickwave:dismissed",release);setRelease(null);}updateDialog.current.close();}},release?"Позже":"Готово"))),
     h("section", { className: "qw-hero", "data-launching":launching, "aria-labelledby": "qw-title" },
       h("div",{className:"qw-launch-ring","aria-hidden":true}),
