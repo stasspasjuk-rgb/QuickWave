@@ -6,6 +6,16 @@
 
 [Релиз 2.4.6](https://github.com/stasspasjuk-rgb/QuickWave/releases/tag/v2.4.6) · [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.6/QuickWave-CustomApp.zip) · [Telegram](https://t.me/QuickDeveloper_bot)
 
+![Запуск волны и выбор настроения в QuickWave 2.4.6](media/wave-2.4.6.gif)
+
+## Настройки в действии
+
+Выбор жанров и смена цветовой темы с предпросмотром.
+
+![Карточки жанров и предпросмотр оформления в QuickWave 2.4.6](media/settings-2.4.6.gif)
+
+*Интерфейс показан на демонстрационном профиле.*
+
 ## Установка и обновление на Windows
 
 1. Установи [Spotify Desktop](https://www.spotify.com/download/windows/) и настрой [Spicetify](https://spicetify.app/docs/getting-started).
