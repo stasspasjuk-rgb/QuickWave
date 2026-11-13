@@ -10,7 +10,7 @@ async function startSongWave(track) {
   await Spicetify.Player.playUri(playlist);
 }
 
-const quickWaveVersion = "2.4.4";
+const quickWaveVersion = "2.4.5";
 
 function waveBeat(position, beat, loudness, volume) {
   if (!beat) return 0;
@@ -40,6 +40,14 @@ const waveIcons={
   update:"M20 11a8 8 0 1 0-2 6m2-11v5h-5"
 };
 const waveThemes=["violet","ocean","ember","forest"];
+const moodArt={
+  any:["#c99aff","M12 2v20M2 12h20M5 5l14 14M19 5L5 19"],
+  calm:["#71e8d2","M2 9c4-5 6 5 10 0s6 5 10 0M2 15c4-5 6 5 10 0s6 5 10 0"],
+  energy:["#ffad64","M13 2L4 14h7l-1 8 10-12h-7z"],
+  focus:["#82baff","M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6M9 12h6m-3-3v6"],
+  sad:["#ad9af5","M20 15a8 8 0 0 1-11-11 8.5 8.5 0 1 0 11 11z"],
+  happy:["#f4d476","M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2m0-14-2 2M7 17l-2 2M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"]
+};
 
 function QuickWavePage() {
   const { createElement: h, useEffect, useState, useRef } = Spicetify.React;
@@ -253,8 +261,8 @@ function QuickWavePage() {
         h("span", { className: "qw-status", role: "status" }, notice||status))),
     state && h(Spicetify.React.Fragment, null,
       state.note && h("p", { className: "qw-message", role: "status" }, state.note),
-      (state.currentPick || state.pending) && h("section", { className: "qw-grid qw-tracks", "aria-label": "Треки волны" },
-        trackCard(state.currentPick, "Сейчас в волне"), trackCard(state.pending, "В очереди Spotify")),
+      state.currentPick && h("section", { className: "qw-grid qw-tracks", "aria-label": "Текущий трек" },
+        trackCard(state.currentPick, "Сейчас в волне")),
       showWaveSettings && h("aside", { className:"qw-wave-settings",id:"qw-wave-settings","aria-labelledby":"qw-wave-settings-title" },
         h("header",{className:"qw-wave-settings-header"},
           h("div",null,h("h2",{id:"qw-wave-settings-title"},"Настроить волну"),
@@ -263,7 +271,17 @@ function QuickWavePage() {
       h("div", { className: "qw-grid qw-settings-grid" },
         h("section", { className: "qw-panel" },
           h("h2", null, "Настроение"),
-          h("div", { className: "qw-chips" }, chips(moods, settings.mood, mood => api.settings({ mood })))),
+          h("div", { className: "qw-mood-grid" }, Object.entries(moods).map(([mood,label])=>{
+            const [color,path]=moodArt[mood];
+            return h("button",{key:mood,className:"qw-mood",type:"button",style:{"--mood-color":color},
+              "aria-pressed":settings.mood===mood,onClick:()=>api.settings({mood})},
+              h("svg",{width:25,height:25,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.5,
+                strokeLinecap:"round",strokeLinejoin:"round","aria-hidden":true},h("path",{d:path})),
+              h("span",null,label));
+          }))),
+        h("details",{className:"qw-panel qw-wide qw-next-track"},
+          h("summary",null,icon("song"),"Дальше в волне"),
+          state.pending?trackCard(state.pending,"Следующий трек"):h("p",null,"Следующий трек появится после подбора.")),
         h("section", { className: "qw-panel" },
           h("h2", null, "Твой вкус"),
           h("div", { className: "qw-chips" }, chips(tastes, settings.taste, taste => api.settings({ taste })))),
