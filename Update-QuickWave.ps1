@@ -16,8 +16,8 @@ function Update-QuickWave {
         $installed = (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version
         if ($installed -and [version]$installed -ge $version) { return }
     }
-    $asset = @($release.assets | Where-Object name -CEQ 'QuickWave-Spicetify.zip')
-    $url = "https://github.com/$repo/releases/download/$($release.tag_name)/QuickWave-Spicetify.zip"
+    $asset = @($release.assets | Where-Object name -CEQ 'QuickWave-CustomApp.zip')
+    $url = "https://github.com/$repo/releases/download/$($release.tag_name)/QuickWave-CustomApp.zip"
     if ($asset.Count -ne 1 -or $asset[0].browser_download_url -cne $url -or $asset[0].digest -notmatch '^sha256:([a-f0-9]{64})$') { throw 'Spicetify release asset unavailable.' }
     $hash = $Matches[1]
     $temp = Join-Path ([IO.Path]::GetTempPath()) ("QuickWave-" + [guid]::NewGuid())
@@ -33,7 +33,7 @@ function Update-QuickWave {
         New-Item -ItemType Directory -Path $app -Force | Out-Null
         & $spicetify config custom_apps quickwave
         if ($LASTEXITCODE -ne 0) { throw 'Could not enable QuickWave.' }
-        $files = 'index.js', 'manifest.json'
+        $files = 'index.js', 'style.css', 'quickwave.js', 'manifest.json'
         $previous = @{}
         foreach ($file in $files) {
             $target = Join-Path $app $file
