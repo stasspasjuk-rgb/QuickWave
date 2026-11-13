@@ -1,29 +1,54 @@
-# QuickWave для Spicetify
+<p align="center"><img src="media/logo.svg" width="96" alt="QuickWave"></p>
 
-QuickWave открывается внутри Spotify Desktop из боковой панели. Подбор учитывает жанры, настроение и оценки в самом QuickWave.
+# QuickWave
 
-[Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/latest/download/QuickWave-CustomApp.zip) · [История версий](https://github.com/stasspasjuk-rgb/QuickWave/releases)
+Персональная волна в боковой панели Spotify Desktop через Spicetify. QuickWave подбирает следующий трек, показывает его обложку и объясняет выбор.
+
+[Скачать релиз](https://github.com/stasspasjuk-rgb/QuickWave/releases/latest) · [Telegram](https://t.me/QuickDeveloper_bot)
+
+![Главный экран и анимация QuickWave](media/wave.gif)
 
 ## Установка на Windows
 
-Установи [Spicetify](https://spicetify.app/docs/getting-started), затем вставь этот блок в PowerShell.
+1. Установи [Spotify Desktop](https://www.spotify.com/download/windows/) и [Spicetify](https://spicetify.app/docs/getting-started).
+2. Убедись, что Spicetify уже применён к Spotify. При первой настройке Spicetify используй его инструкцию.
+3. Открой обычный PowerShell и вставь весь блок.
 
 ```powershell
-$installer = Join-Path $env:TEMP 'Update-QuickWave.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/latest/download/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Install
+$installer = Join-Path $env:TEMP ('QuickWave-' + [guid]::NewGuid() + '.ps1')
+try {
+    Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/latest/download/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Install
+} finally {
+    if (Test-Path -LiteralPath $installer) { Remove-Item -LiteralPath $installer -Force }
+}
 ```
 
-Перезапусти Spotify и открой **QuickWave** в боковой панели. Установщик один раз регистрирует скрытую задачу Windows. После этого закрой PowerShell. При каждом запуске Spotify помощник проверяет GitHub. Если есть обновление, оно скачивается и применяется в фоне. Новая версия загрузится при следующем запуске Spotify.
+4. Перезапусти Spotify. Открой **QuickWave** в боковой панели.
 
-Вручную можно распаковать ZIP, скопировать папку `quickwave` в `CustomApps` рядом с файлом из `spicetify -c`, затем выполнить `spicetify config custom_apps quickwave` и `spicetify apply`. Для фонового обновления выполни установку из PowerShell один раз.
+Если приложение пропало после обновления Spotify, проверь совместимость версий Spotify и Spicetify и заново примени настройки Spicetify.
 
-## Возможности
+## Использование
 
-- **Моя волна** пополняет обычную очередь Spotify. Можно выбрать настроение, режим вкуса и до пяти жанров, включая свои.
-- **Профиль на этом компьютере** учитывает лайки, пропуски и длительность прослушивания. Сбор можно выключить, а профиль очистить прямо в приложении.
-- **Оформление** переключает четыре цветовые темы. Иконки интерфейса выполнены в SVG.
+- **Включить волну** пополняет обычную очередь Spotify по одному треку. Настройки настроения, вкуса и жанров влияют на следующий выбор.
+- **Волна по песне** включает подборку по текущему треку.
+- **Оформление** переключает цветовые темы. Фигура движется в такт при доступных данных о ритме и громкости. Для остальных треков используется плавная анимация. Настройка уменьшения движения в системе учитывается.
+- **Проверить обновления** находится в меню «Оформление». QuickWave также проверяет GitHub при открытии страницы. При наличии версии выбери **Обновить** или **Позже**. На Windows установленный помощник сверяет SHA-256, применяет обновление и перезапускает Spotify.
 
-QuickWave использует функции настольного клиента через Spicetify. Доступность поиска и очереди зависит от версии Spotify. Локальный профиль и модификации клиента подпадают под применимые условия Spotify.
+![Настройки QuickWave](media/settings.gif)
 
-[Правила Spotify для разработчиков](https://developer.spotify.com/policy) · [Пользовательские правила Spotify](https://www.spotify.com/us/legal/user-guidelines/)
+## Устройства
+
+| Устройство | Поддержка |
+| --- | --- |
+| Windows, Spotify Desktop + Spicetify | Custom App, установка и скрытый помощник обновлений |
+| macOS и Linux, Spotify Desktop + Spicetify | Ручная установка. Совместимость клиента отдельно не проверена |
+| Android, iOS, веб-плеер | Custom App не поддерживается |
+
+При ручной установке распакуй ZIP, скопируй папку `quickwave` в папку `CustomApps` рядом с файлом, который показывает `spicetify -c`, затем выполни `spicetify config custom_apps quickwave` и `spicetify apply`. На macOS и Linux обновляй файлы тем же способом.
+
+## Как подбираются треки
+
+QuickWave ищет кандидатов в медиатеке и подборках Spotify. Жанр и настроение учитываются по тематике найденных подборок. Лайки и длительные прослушивания увеличивают вес знакомого звучания, ранние пропуски снижают оценку, а недавние треки и артисты получают штраф. Профиль хранится в клиенте. Сбор сигналов можно выключить и очистить историю на странице QuickWave.
+
+Приложение использует функции настольного клиента через Spicetify. Доступность отдельных функций зависит от версии Spotify, региона и аккаунта. [Пользовательские правила Spotify](https://www.spotify.com/us/legal/user-guidelines/)

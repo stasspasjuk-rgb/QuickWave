@@ -2,27 +2,26 @@ function render() {
   return Spicetify.React.createElement(QuickWavePage);
 }
 
-  function openSpotifyRadio(track){
-    const path="/track/"+track.uri.split(":")[2];
-    const links=document.querySelectorAll('.main-nowPlayingBar-nowPlayingBar a, [data-testid="now-playing-widget"] a, .Root__now-playing-bar a');
-    const trigger=[...links].find(link=>link.getAttribute("href")===path || link.getAttribute("href")===track.uri);
-    if(!trigger){Spicetify.showNotification?.('Открой меню текущего трека в плеере',true);return;}
-    const label=Spicetify.Locale?.getDictionary?.()?.["contextmenu.go-to-song-radio"];
-    const labels=new Set([label,"Go to song radio","Перейти к радио по треку","Перейти к радио"]);
-    const existing=new Set(document.querySelectorAll('[role="menuitem"]'));
-    const rect=trigger.getBoundingClientRect();
-    trigger.dispatchEvent(new MouseEvent("contextmenu",{bubbles:true,cancelable:true,button:2,clientX:rect.x,clientY:rect.y}));
-    let attempts=0;
-    const timer=setInterval(()=>{
-      if(Spicetify.Player.data?.item?.uri!==track.uri||++attempts>16){clearInterval(timer);return;}
-      const item=[...document.querySelectorAll('[role="menuitem"]')].find(node=>!existing.has(node) &&
-        (node.getAttribute("data-menu-action")==="go-to-radio" || labels.has(node.textContent.trim())));
-      if(!item)return;
-      clearInterval(timer);
-      if(item.matches('[disabled], [aria-disabled="true"], [data-disabled="true"]'))return;
-      item.click();
-    },50);
-  }
+async function startSongWave(track) {
+  const url = "https://spclient.wg.spotify.com/inspiredby-mix/v2/seed_to_playlist/" + track.uri + "?response-format=json";
+  const result = await Spicetify.CosmosAsync.get(url);
+  const playlist = result?.mediaItems?.[0]?.uri;
+  if (!/^spotify:playlist:[A-Za-z0-9]{22}$/.test(playlist)) throw new Error("Подборка недоступна");
+  await Spicetify.Player.playUri(playlist);
+}
+
+const quickWaveVersion = "2.4.0";
+
+async function quickWaveRelease() {
+  const response = await fetch("https://api.github.com/repos/stasspasjuk-rgb/QuickWave/releases/latest", {signal:AbortSignal.timeout(12000)});
+  if (!response.ok) throw new Error("GitHub не ответил");
+  const release = await response.json();
+  if (!/^v\d+\.\d+\.\d+$/.test(release.tag_name) || release.draft || release.prerelease) return null;
+  const installed = quickWaveVersion.split(".").map(Number);
+  const latest = release.tag_name.slice(1).split(".").map(Number);
+  const first = latest.findIndex((part,i)=>part!==installed[i]);
+  return first>=0 && latest[first]>installed[first] ? release.tag_name : null;
+}
 
 const waveIcons={
   play:"M8 5l12 7-12 7z",stop:"M7 7h10v10H7z",
@@ -32,13 +31,77 @@ const waveIcons={
 const waveThemes=["violet","ocean","ember","forest"];
 
 function QuickWavePage() {
-  const { createElement: h, useEffect, useState } = Spicetify.React;
+  const { createElement: h, useEffect, useState, useRef } = Spicetify.React;
   const [state, setState] = useState(null);
   const [custom, setCustom] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [track, setTrack] = useState(Spicetify.Player?.data?.item);
   const [theme, setTheme] = useState(()=>Spicetify.LocalStorage.get("quickwave:theme")||"violet");
   const [showTheme, setShowTheme] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [release, setRelease] = useState(null);
+  const [updateStage, setUpdateStage] = useState("");
+  const orb = useRef(null);
+  const updateBusy = useRef(false);
+  async function checkUpdates(quiet=false) {
+    if(updateBusy.current)return;
+    updateBusy.current=true;
+    if(!quiet)setUpdateStage("Проверяем GitHub…");
+    try {
+      const found=await quickWaveRelease();
+      if(found && (!quiet || sessionStorage.getItem("quickwave:dismissed")!==found))setRelease(found);
+      setUpdateStage(!found&&!quiet?"Установлена последняя версия":"");
+    } catch {
+      if(!quiet)setUpdateStage("GitHub недоступен. Попробуй позже.");
+    } finally { updateBusy.current=false; }
+  }
+  async function installUpdate() {
+    if(updateBusy.current)return;
+    updateBusy.current=true;
+    setUpdateStage("Скачиваем и устанавливаем обновление…");
+    try {
+      const response=await fetch("http://127.0.0.1:46423/update",{
+        method:"POST",headers:{"X-QuickWave-Version":release},signal:AbortSignal.timeout(120000)
+      });
+      if(!response.ok)throw new Error();
+      setUpdateStage("Перезапускаем Spotify…");
+    } catch {
+      setUpdateStage("Не удалось обновить. Проверь, установлен ли помощник из README, и попробуй снова.");
+    } finally { updateBusy.current=false; }
+  }
+  useEffect(()=>{ void checkUpdates(true); },[]);
+  useEffect(()=>{
+    const player=Spicetify.Player;
+    if(!orb.current || typeof requestAnimationFrame!=="function" || matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+    let cancelled=false, frame, beats=[], segments=[], beatIndex=0, segmentIndex=0, lastPos=0;
+    if(track?.uri && Spicetify.getAudioData){
+      Promise.resolve().then(()=>Spicetify.getAudioData(track.uri)).then(data=>{
+        if(!cancelled){beats=data?.beats||[];segments=data?.segments||[];}
+      }).catch(()=>{});
+    }
+    const paint=()=>{
+      const position=(player?.getProgress?.()||0)/1000;
+      if(position<lastPos || position-lastPos>1){beatIndex=0;segmentIndex=0;}
+      lastPos=position;
+      while(beats[beatIndex+1]?.start<=position)beatIndex++;
+      while(segments[segmentIndex+1]?.start<=position)segmentIndex++;
+      const playing=player?.isPlaying?.()===true;
+      const beat=beats[beatIndex];
+      const volume=Math.min(1,Math.max(0,(Number(player?.getVolume?.())||0)));
+      const loudness=segments[segmentIndex]?.loudness_max;
+      const gain=Number.isFinite(loudness)?Math.min(1,Math.max(0,(loudness+35)/35)):0.55;
+      const pulse=playing&&beat?Math.exp(-8*Math.abs(position-beat.start))*volume*gain:0;
+      const node=orb.current;
+      if(node){
+        node.style.setProperty("--qw-pulse",pulse.toFixed(3));
+        node.style.setProperty("--qw-spin",`${playing?position*7:0}deg`);
+        node.style.setProperty("--qw-shape",`${(44+pulse*21).toFixed(1)}%`);
+      }
+      frame=requestAnimationFrame(paint);
+    };
+    frame=requestAnimationFrame(paint);
+    return ()=>{cancelled=true;cancelAnimationFrame(frame);};
+  },[track?.uri]);
   useEffect(()=>{
     const player=Spicetify.Player;
     const update=()=>setTrack(player?.data?.item);
@@ -88,6 +151,7 @@ function QuickWavePage() {
   function trackCard(track, caption) {
     if (!track) return null;
     return h("div", { className: "qw-track", key: caption },
+      track.cover && h("img",{className:"qw-cover",src:track.cover,alt:"",width:56,height:56}),
       h("span", { className: "qw-kicker" }, caption),
       h("strong", null, track.name || "Трек Spotify"),
       track.artist && h("span", null, track.artist),
@@ -96,20 +160,32 @@ function QuickWavePage() {
 
   return h("main", { className: "qw-app", "data-theme": theme },
     h("div",{className:"qw-toolbar"},
+      h("a",{className:"qw-chip qw-telegram",href:"https://t.me/QuickDeveloper_bot",target:"_blank",rel:"noopener noreferrer"},
+        h("svg",{width:20,height:20,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,"aria-hidden":true},h("path",{d:"M3 11l18-7-4 16-6-5-3 3 1-5 8-6-10 5z",strokeLinejoin:"round"})),"Telegram"),
       h("button",{className:"qw-chip",type:"button","aria-expanded":showTheme,onClick:()=>setShowTheme(!showTheme)},icon("settings"),"Оформление"),
-      showTheme && h("div",{className:"qw-chips"},chips(Object.fromEntries(waveThemes.map((key,i)=>[key,["Лиловая","Океан","Закат","Лес"][i]])),theme,value=>{setTheme(value);Spicetify.LocalStorage.set("quickwave:theme",value);}))),
+      showTheme && h("div",{className:"qw-chips"},chips(Object.fromEntries(waveThemes.map((key,i)=>[key,["Лиловая","Океан","Закат","Лес"][i]])),theme,value=>{setTheme(value);Spicetify.LocalStorage.set("quickwave:theme",value);}),
+        h("button",{className:"qw-chip",type:"button",onClick:()=>checkUpdates()},"Проверить обновления"))),
+    !release && updateStage && h("p",{className:"qw-message",role:"status"},updateStage),
+    release && h("section",{className:"qw-update","data-busy":/^Скачиваем|^Перезапускаем/.test(updateStage),role:"region","aria-label":"Обновление QuickWave"},
+      h("strong",null,`Доступно обновление QuickWave ${release.slice(1)}`),
+      updateStage && h("p",{role:"status"},updateStage),
+      h("div",{className:"qw-chips"},
+        h("button",{className:"qw-chip",type:"button",disabled:/^Скачиваем|^Перезапускаем/.test(updateStage),onClick:installUpdate},"Обновить"),
+        h("button",{className:"qw-chip",type:"button",disabled:/^Скачиваем|^Перезапускаем/.test(updateStage),onClick:()=>{sessionStorage.setItem("quickwave:dismissed",release);setRelease(null);setUpdateStage("");}},"Позже"))),
     h("section", { className: "qw-hero", "aria-labelledby": "qw-title" },
-      h("div", { className: "qw-orb", "data-active": Boolean(state?.active), "aria-hidden": true }),
+      h("div", { className: "qw-orb", ref:orb, "data-active": Boolean(state?.active), "aria-hidden": true }),
       h("div", { className: "qw-hero-content" },
         h("h1", { id: "qw-title" }, "Моя волна"),
-        h("button", { type: "button", className: "qw-play", disabled: !state, onClick: () => api.toggle() }, icon(state?.active?"stop":"play"), label),
-        h("button",{className:"qw-chip qw-song",type:"button",disabled:!/^spotify:track:[A-Za-z0-9]{22}$/.test(track?.uri),onClick:()=>{
+        h("button", { type: "button", className: "qw-play", disabled: !state, onClick: () => { setNotice(""); api.toggle(); } }, icon(state?.active?"stop":"play"), label),
+        h("button",{className:"qw-chip qw-song",type:"button",disabled:!/^spotify:track:[A-Za-z0-9]{22}$/.test(track?.uri)||notice==="Запускаем волну…",onClick:async()=>{
           const current=Spicetify.Player.data?.item;
           if(!/^spotify:track:[A-Za-z0-9]{22}$/.test(current?.uri))return;
           if(api?.snapshot().active)api.toggle();
-          openSpotifyRadio(current);
+          setNotice("Запускаем волну…");
+          try { await startSongWave(current); setNotice("Волна по песне включена"); }
+          catch { setNotice("Не удалось включить волну по песне. Попробуй другой трек."); }
         }},icon("song"),"Волна по песне"),
-        h("span", { className: "qw-status", role: "status" }, status))),
+        h("span", { className: "qw-status", role: "status" }, notice||status))),
     state && h(Spicetify.React.Fragment, null,
       state.note && h("p", { className: "qw-message", role: "status" }, state.note),
       (state.currentPick || state.pending) && h("section", { className: "qw-grid qw-tracks", "aria-label": "Треки волны" },

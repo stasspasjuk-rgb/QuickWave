@@ -1,4 +1,4 @@
-param([switch]$Install, [switch]$Background)
+param([switch]$Install, [switch]$Background, [string]$RequestedVersion)
 $ErrorActionPreference = 'Stop'
 $repo = 'stasspasjuk-rgb/QuickWave'
 $spicetify = (Get-Command spicetify.exe -ErrorAction Stop).Source
@@ -12,6 +12,7 @@ function Update-QuickWave {
     $release = Invoke-RestMethod -UseBasicParsing -TimeoutSec 20 -Headers @{'User-Agent'='QuickWave-Updater'} -Uri "https://api.github.com/repos/$repo/releases/latest"
     if ($release.tag_name -notmatch '^v(\d+\.\d+\.\d+)$' -or $release.draft -or $release.prerelease) { return }
     $version = [version]$Matches[1]
+    if ($RequestedVersion -and $release.tag_name -cne $RequestedVersion) { throw 'Release changed. Check for updates again.' }
     if (!$Install -and (Test-Path -LiteralPath $manifest)) {
         $installed = (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version
         if ($installed -and [version]$installed -ge $version) { return }
@@ -70,6 +71,9 @@ shell.Run "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy By
     $account = [Security.Principal.WindowsIdentity]::GetCurrent().Name
     $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
     $name = "QuickWave Updater $sid"
+    if (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue) {
+        Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+    }
     $action = New-ScheduledTaskAction -Execute (Join-Path $env:SystemRoot 'System32\wscript.exe') -Argument ('//B //Nologo "' + $launcher + '"')
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $account
     $principal = New-ScheduledTaskPrincipal -UserId $account -LogonType Interactive
@@ -84,23 +88,53 @@ if (!$Background) {
     return
 }
 
-$session = (Get-Process -Id $PID).SessionId
-$lastStart = $null
 $log = Join-Path $PSScriptRoot 'last-error.txt'
-while ($true) {
-    $spotify = Get-Process -Name Spotify -ErrorAction SilentlyContinue |
-        Where-Object { $_.SessionId -eq $session } |
-        Sort-Object StartTime | Select-Object -First 1
-    $started = if ($spotify) { "$($spotify.Id):$($spotify.StartTime.Ticks)" }
-    if ($started -and $started -ne $lastStart) {
+$listener = [Net.HttpListener]::new()
+$listener.Prefixes.Add('http://127.0.0.1:46423/')
+try {
+    $listener.Start()
+    while ($true) {
+        $context = $listener.GetContext()
+        $request = $context.Request
+        $response = $context.Response
+        $origin = $request.Headers['Origin']
+        $restart = $false
         try {
+            if ($origin -cnotin @('https://xpui.app.spotify.com', 'https://open.spotify.com') -or
+                $request.Url.AbsolutePath -cne '/update' -or $request.UserHostName -cne '127.0.0.1:46423') {
+                $response.StatusCode = 403
+                continue
+            }
+            $response.Headers['Access-Control-Allow-Origin'] = $origin
+            $response.Headers['Vary'] = 'Origin'
+            $response.Headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            $response.Headers['Access-Control-Allow-Headers'] = 'X-QuickWave-Version'
+            $response.Headers['Access-Control-Allow-Private-Network'] = 'true'
+            if ($request.HttpMethod -eq 'OPTIONS') { $response.StatusCode = 204; continue }
+            $RequestedVersion = $request.Headers['X-QuickWave-Version']
+            if ($request.HttpMethod -cne 'POST' -or $RequestedVersion -notmatch '^v\d+\.\d+\.\d+$') {
+                $response.StatusCode = 400
+                continue
+            }
             $enabled = & $spicetify config custom_apps
-            if (($enabled -join '|') -split '\|' -contains 'quickwave') { Update-QuickWave }
-            if (Test-Path -LiteralPath $log) { Remove-Item -LiteralPath $log -Force }
+            if ((($enabled -join '|') -split '\|') -notcontains 'quickwave') { throw 'QuickWave is disabled.' }
+            Update-QuickWave
+            $response.StatusCode = 204
+            $restart = $true
         } catch {
+            $response.StatusCode = 500
             Set-Content -LiteralPath $log -Value $_.Exception.Message -Encoding UTF8
+        } finally {
+            $response.Close()
+        }
+        if ($restart) {
+            Start-Sleep -Milliseconds 1400
+            & $spicetify restart
         }
     }
-    $lastStart = $started
-    Start-Sleep -Seconds 3
+} catch {
+    Set-Content -LiteralPath $log -Value $_.Exception.Message -Encoding UTF8
+    throw
+} finally {
+    $listener.Close()
 }

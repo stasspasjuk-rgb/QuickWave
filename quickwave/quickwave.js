@@ -67,7 +67,11 @@
     const first = artists?.[0];
     const artist = first?.name || first?.profile?.name || data.artist?.name || metadata.artist_name || "";
     const artistId = first?.uri || data.artist?.uri || metadata.artist_uri || artist.toLowerCase();
-    return { uri, name: data.name || metadata.title || "", artist, artistId };
+    const image = metadata.image_url || data.albumOfTrack?.coverArt?.sources?.[0]?.url ||
+      data.album?.images?.[0]?.url || data.album?.image?.url || data.images?.[0]?.url || data.image?.url;
+    const cover = /^spotify:image:[a-f0-9]+$/i.test(image) ? "https://i.scdn.co/image/" + image.split(":")[2] :
+      /^https:\/\/(?:i\.scdn\.co|image-cdn-[a-z0-9]+\.spotifycdn\.com)\//i.test(image) ? image : "";
+    return { uri, name: data.name || metadata.title || "", artist, artistId, cover };
   }
 
   function row(track) {
@@ -272,6 +276,7 @@
     const candidates = new Map();
     const add = (track, clues) => {
       const candidate = candidates.get(track.uri) || { ...track, genre: "", mood: "", link: "", liked: false };
+      if (!candidate.cover && track.cover) candidate.cover = track.cover;
       for (const field of ["genre", "mood", "link", "liked"]) {
         if (clues[field]) candidate[field] = clues[field];
       }
@@ -343,10 +348,10 @@
       const linked = Boolean(candidate.link);
       const recent = r?.ms && now - r.at < 120 * 60_000;
       const nearArtist = candidate.artistId && (candidate.artistId === currentArtist || recentArtists.has(candidate.artistId));
-      const score = (genreMatch ? 7 : genreAffinity ? 4 : 0) + (moodMatch ? 5 : 0) + (linked ? 3 : 0) + artistWeight +
+      const score = (genreMatch ? 10 : genreAffinity ? 4 : 0) + (moodMatch ? 7 : 0) + (linked ? 3 : 0) + artistWeight +
         (taste === "discover" ? (known ? -4 : 5) : taste === "favorites" ? (known ? 6 : -2) : (known ? 1 : 2)) +
         (r?.liked || candidate.liked ? 2 : 0) - Math.min(r?.skips || 0, 5) * 2 -
-        (recent ? 12 : 0) - (nearArtist ? 7 : 0) + Math.random() * 2.5;
+        (recent ? 18 : 0) - (nearArtist ? 9 : 0) + Math.random() * 1.5;
       const reasons = [
         genreMatch && `жанровая подборка «${candidate.genre}»`,
         !genreMatch && genreAffinity && `часто слушаешь «${candidate.genre}»`,
