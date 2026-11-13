@@ -132,10 +132,11 @@
     if (session.genre) r.genre = session.genre;
     if (typeof session.liked === "boolean") r.liked = session.liked;
     const duration = session.duration;
-    const counted = session.ms >= Math.min(30_000, duration ? duration * 0.5 : 30_000);
     const completed = duration > 0 && session.ms >= duration * 0.75;
-    if (counted) r.plays++;
-    if (completed) r.completed++;
+    if (completed) {
+      r.plays++;
+      r.completed++;
+    }
     if (allowSkip && !session.partial && session.ms > 0 && session.ms < Math.min(20_000, duration ? duration * 0.25 : 20_000)) r.skips++;
     r.ms += Math.round(session.ms);
     r.at = Date.now();
@@ -165,8 +166,9 @@
     if (!session || session.track.uri !== track?.uri || (item?.uid && session.uid && item.uid !== session.uid) || repeated) {
       if (session) {
         const tail = now - session.now;
-        if (session.playing && tail >= 350 && tail <= 3000) {
-          session.ms += session.duration ? Math.min(tail, Math.max(0, session.duration - session.pos)) : tail;
+        const remaining = session.duration - session.pos;
+        if (session.playing && remaining > 0 && remaining <= tail && tail <= 3000) {
+          session.ms += remaining;
         }
         finish(true);
       }
@@ -479,7 +481,7 @@
           return response.json();
         }).then(release=>{
           if(release.draft||release.prerelease||!/^v\d+\.\d+\.\d+$/.test(release.tag))throw new Error();
-          const installed=[2,4,6];
+          const installed=[2,4,7];
           const remote=release.tag.slice(1).split(".").map(Number);
           const first=remote.findIndex((value,index)=>value!==installed[index]);
           const update=first>=0&&remote[first]>installed[first]?release.tag:null;

@@ -10,7 +10,7 @@ async function startSongWave(track) {
   await Spicetify.Player.playUri(playlist);
 }
 
-const quickWaveVersion = "2.4.6";
+const quickWaveVersion = "2.4.7";
 
 function waveBeat(position, beat, loudness, volume) {
   if (!beat) return 0;
@@ -34,7 +34,7 @@ async function quickWaveRelease() {
 }
 
 const waveIcons={
-  play:"M8 5l12 7-12 7z",stop:"M7 7h10v10H7z",
+  play:"M8.7 4.8a1.8 1.8 0 0 0-2.7 1.6v11.2a1.8 1.8 0 0 0 2.7 1.6l9.4-5.6a1.85 1.85 0 0 0 0-3.2z",stop:"M8 5h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z",
   song:"M2 12h4l3-7 5 14 4-10 2 3h2",
   settings:"M4 7h16M4 17h16M8 4v6m8 4v6",
   update:"M20 11a8 8 0 1 0-2 6m2-11v5h-5"
@@ -179,7 +179,10 @@ function QuickWavePage() {
   const genres = settings?.genres || [];
   const label = state?.active ? "Остановить волну" : "Включить волну";
   const status = state?.busy ? "Подбираем музыку…" : state?.active ? "Волна включена" : state ? "Волна выключена" : "Подключение к Spotify…";
-  const icon = name => h("svg",{width:20,height:20,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round",strokeLinejoin:"round","aria-hidden":true},h("path",{d:waveIcons[name]}));
+  const icon = name => {
+    const filled = name==="play" || name==="stop";
+    return h("svg",{className:"qw-icon",width:20,height:20,viewBox:"0 0 24 24",fill:filled?"currentColor":"none",stroke:filled?"none":"currentColor",strokeWidth:1.8,strokeLinecap:"round",strokeLinejoin:"round","aria-hidden":true},h("path",{d:waveIcons[name]}));
+  };
 
   function chips(options, selected, change) {
     return Object.entries(options).map(([value, caption]) => {

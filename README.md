@@ -1,10 +1,10 @@
 <p align="center"><img src="media/logo.svg" width="96" alt="Логотип QuickWave"></p>
 
-# QuickWave 2.4.6
+# QuickWave 2.4.7
 
 Персональная волна в Spotify Desktop через Spicetify. Запускай подбор с главного экрана, меняй настроение и жанры в боковой панели или разворачивай волну на весь экран.
 
-[Релиз 2.4.6](https://github.com/stasspasjuk-rgb/QuickWave/releases/tag/v2.4.6) · [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.6/QuickWave-CustomApp.zip) · [Telegram](https://t.me/QuickDeveloper_bot)
+[Релиз 2.4.7](https://github.com/stasspasjuk-rgb/QuickWave/releases/tag/v2.4.7) · [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.7/QuickWave-CustomApp.zip) · [Telegram](https://t.me/QuickDeveloper_bot)
 
 ![Запуск волны и выбор настроения в QuickWave 2.4.6](media/wave-2.4.6.gif)
 
@@ -24,7 +24,7 @@
 ```powershell
 $installer = Join-Path $env:TEMP ('QuickWave-' + [guid]::NewGuid() + '.ps1')
 try {
-    Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.6/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
+    Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.7/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Install
     if ($LASTEXITCODE -ne 0) { throw 'Установка QuickWave не завершилась' }
 } finally {
@@ -72,6 +72,6 @@ spicetify apply
 
 ## Как работает подбор
 
-QuickWave ищет кандидатов в медиатеке и тематических подборках Spotify. Лайки и долгие прослушивания увеличивают вес знакомого звучания. Ранние пропуски снижают оценку, а недавно звучавшие треки и артисты получают меньший приоритет. Профиль хранится в клиенте и управляется во вкладке **Профиль**.
+QuickWave ищет кандидатов в медиатеке и тематических подборках Spotify. Лайки и долгие прослушивания увеличивают вес знакомого звучания. В счётчик попадают треки, у которых фактически прослушано не менее 75% длительности. Ранние пропуски снижают оценку, а недавно звучавшие треки и артисты получают меньший приоритет. Профиль хранится в клиенте и управляется во вкладке **Профиль**.
 
 Доступность отдельных функций зависит от версии Spotify, региона и аккаунта. [Пользовательские правила Spotify](https://www.spotify.com/us/legal/user-guidelines/)

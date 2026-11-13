@@ -213,3 +213,4 @@ radial-gradient(ellipse 46% calc(39% + var(--qw-pulse,0)*9%) at 60% 63%,var(--wa
 .qw-mood:nth-child(even)::before{animation-direction:reverse;animation-delay:-3s}
 @keyframes qw-swatch{to{transform:rotate(360deg);filter:blur(4px) hue-rotate(40deg)}}
 @media(prefers-reduced-motion:reduce){.qw-mood::before{animation:none}}
+.qw-play .qw-icon{display:block;flex:0 0 20px}
