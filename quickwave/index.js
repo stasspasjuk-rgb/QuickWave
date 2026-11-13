@@ -10,7 +10,7 @@ async function startSongWave(track) {
   await Spicetify.Player.playUri(playlist);
 }
 
-const quickWaveVersion = "2.4.3";
+const quickWaveVersion = "2.4.4";
 
 function waveBeat(position, beat, loudness, volume) {
   if (!beat) return 0;
@@ -52,6 +52,9 @@ function QuickWavePage() {
   const [previewTheme, setPreviewTheme] = useState(theme);
   const [background, setBackground] = useState(()=>Spicetify.LocalStorage.get("quickwave:background")||"theme");
   const [previewBackground, setPreviewBackground] = useState(background);
+  const [waveColor, setWaveColor] = useState(()=>Spicetify.LocalStorage.get("quickwave:wave-color")||"");
+  const [previewColor, setPreviewColor] = useState(waveColor);
+  const [showWaveSettings, setShowWaveSettings] = useState(false);
   const [launching, setLaunching] = useState(true);
   const [notice, setNotice] = useState("");
   const [release, setRelease] = useState(null);
@@ -60,7 +63,6 @@ function QuickWavePage() {
   const updateBusy = useRef(false);
   const launchTimer = useRef(null);
   const themeDialog = useRef(null);
-  const waveSettings = useRef(null);
   const updateDialog = useRef(null);
   useEffect(()=>{ launchTimer.current=setTimeout(()=>setLaunching(false),1050); return ()=>clearTimeout(launchTimer.current); },[]);
   useEffect(()=>{
@@ -193,11 +195,14 @@ function QuickWavePage() {
 
   const updateRunning=/^Проверяем|^Скачиваем|^Перезапускаем/.test(updateStage);
   const upToDate=updateStage==="Установлена последняя версия";
-  return h("main", { className: "qw-app", "data-theme": showTheme?previewTheme:theme, "data-background":showTheme?previewBackground:background },
+  const color=showTheme?previewColor:waveColor;
+  const customPalette=/^#[a-f0-9]{6}$/i.test(color)?{"--qw-custom":color}:undefined;
+  return h("main", { className: "qw-app qw-full-wave", style:customPalette, "data-theme": showTheme?previewTheme:theme, "data-background":showTheme?previewBackground:background, "data-settings-open":showWaveSettings,
+    onKeyDown:event=>{if(event.key==="Escape"&&showWaveSettings){setShowWaveSettings(false);setConfirm(false);}} },
     h("div",{className:"qw-toolbar"},
       h("a",{className:"qw-chip qw-telegram",href:"https://t.me/QuickDeveloper_bot",target:"_blank",rel:"noopener noreferrer"},
         h("svg",{width:20,height:20,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,"aria-hidden":true},h("path",{d:"M3 11l18-7-4 16-6-5-3 3 1-5 8-6-10 5z",strokeLinejoin:"round"})),"Telegram"),
-      h("button",{className:"qw-chip",type:"button",onClick:()=>{setPreviewTheme(theme);setPreviewBackground(background);setShowTheme(true);themeDialog.current.showModal();}},icon("settings"),"Оформление"),
+      h("button",{className:"qw-chip",type:"button",onClick:()=>{setPreviewTheme(theme);setPreviewBackground(background);setPreviewColor(waveColor);setShowTheme(true);themeDialog.current.showModal();}},icon("settings"),"Оформление"),
       h("button",{className:"qw-chip",type:"button",onClick:()=>checkUpdates()},icon("update"),"Проверить обновления")),
     h("dialog",{className:"qw-theme-dialog",ref:themeDialog,"aria-labelledby":"qw-theme-title",onClose:()=>setShowTheme(false)},
       h("h2",{id:"qw-theme-title"},"Оформление"),
@@ -205,8 +210,11 @@ function QuickWavePage() {
       h("div",{className:"qw-chips"},chips(Object.fromEntries(waveThemes.map((key,i)=>[key,["Лиловая","Океан","Закат","Лес"][i]])),previewTheme,setPreviewTheme)),
       h("h3",null,"Фон"),
       h("div",{className:"qw-chips"},chips({theme:"Под цвет темы",dark:"Графит",spotify:"Фон Spotify"},previewBackground,setPreviewBackground)),
+      h("div",{className:"qw-color-controls"},
+        h("label",null,"Цвет волны",h("input",{type:"color",value:/^#[a-f0-9]{6}$/i.test(previewColor)?previewColor:"#e94fc2",onChange:event=>setPreviewColor(event.target.value)})),
+        h("button",{className:"qw-chip",type:"button",onClick:()=>setPreviewColor("")},"Цвет темы")),
       h("div",{className:"qw-chips qw-theme-actions"},
-        h("button",{className:"qw-chip",type:"button",onClick:()=>{setTheme(previewTheme);setBackground(previewBackground);Spicetify.LocalStorage.set("quickwave:theme",previewTheme);Spicetify.LocalStorage.set("quickwave:background",previewBackground);themeDialog.current.close();}},"Применить"),
+        h("button",{className:"qw-chip",type:"button",onClick:()=>{setTheme(previewTheme);setBackground(previewBackground);setWaveColor(previewColor);Spicetify.LocalStorage.set("quickwave:theme",previewTheme);Spicetify.LocalStorage.set("quickwave:background",previewBackground);Spicetify.LocalStorage.set("quickwave:wave-color",previewColor);themeDialog.current.close();}},"Применить"),
         h("button",{className:"qw-chip",type:"button",onClick:()=>themeDialog.current.close()},"Отмена"))),
     release && h("button",{className:"qw-chip qw-update-offer",type:"button",onClick:()=>updateDialog.current.showModal()},`Доступно обновление QuickWave ${release.slice(1)}`),
     h("dialog",{className:"qw-theme-dialog qw-update-dialog",ref:updateDialog,"aria-labelledby":"qw-update-title",
@@ -240,18 +248,18 @@ function QuickWavePage() {
           catch { setNotice("Не удалось включить волну по песне. Попробуй другой трек."); }
         }},icon("song"),"Волна по песне"),
         h("button", { className:"qw-chip qw-configure", type:"button", disabled:!state,
-          "aria-haspopup":"dialog", onClick:()=>waveSettings.current.showModal() },icon("settings"),"Настроить"),
+          "aria-expanded":showWaveSettings,"aria-controls":showWaveSettings?"qw-wave-settings":undefined,
+          onClick:()=>{setShowWaveSettings(!showWaveSettings);setConfirm(false);} },icon("settings"),"Настроить"),
         h("span", { className: "qw-status", role: "status" }, notice||status))),
     state && h(Spicetify.React.Fragment, null,
       state.note && h("p", { className: "qw-message", role: "status" }, state.note),
       (state.currentPick || state.pending) && h("section", { className: "qw-grid qw-tracks", "aria-label": "Треки волны" },
         trackCard(state.currentPick, "Сейчас в волне"), trackCard(state.pending, "В очереди Spotify")),
-      h("dialog", { className:"qw-theme-dialog qw-wave-settings", ref:waveSettings, "aria-labelledby":"qw-wave-settings-title",
-        onClose:()=>setConfirm(false) },
+      showWaveSettings && h("aside", { className:"qw-wave-settings",id:"qw-wave-settings","aria-labelledby":"qw-wave-settings-title" },
         h("header",{className:"qw-wave-settings-header"},
           h("div",null,h("h2",{id:"qw-wave-settings-title"},"Настроить волну"),
             h("p",null,"Выбор применяется к следующему подбору.")),
-          h("button",{className:"qw-chip",type:"button",onClick:()=>waveSettings.current.close()},"Готово")),
+          h("button",{className:"qw-chip",type:"button",onClick:()=>{setShowWaveSettings(false);setConfirm(false);}},"Готово")),
       h("div", { className: "qw-grid qw-settings-grid" },
         h("section", { className: "qw-panel" },
           h("h2", null, "Настроение"),
