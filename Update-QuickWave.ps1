@@ -8,6 +8,17 @@ $apps = Join-Path (Split-Path -Parent $config) 'CustomApps'
 $app = Join-Path $apps 'quickwave'
 $manifest = Join-Path $app 'manifest.json'
 
+function Send-QuickWaveProgress($phase) {
+    if (!$streamResponse) { return }
+    try {
+        $bytes = [Text.Encoding]::UTF8.GetBytes(('{ "phase": "' + $phase + '" }') + "`n")
+        $streamResponse.OutputStream.Write($bytes, 0, $bytes.Length)
+        $streamResponse.OutputStream.Flush()
+    } catch {
+        # A closed Spotify view does not interrupt an accepted installation.
+    }
+}
+
 function Update-QuickWave {
     $release = Invoke-RestMethod -UseBasicParsing -TimeoutSec 20 -Headers @{'User-Agent'='QuickWave-Updater'} -Uri "https://raw.githubusercontent.com/$repo/main/release.json"
     if ($release.tag -notmatch '^v(\d+\.\d+\.\d+)$' -or $release.draft -or $release.prerelease) { return }
@@ -24,7 +35,9 @@ function Update-QuickWave {
     New-Item -ItemType Directory -Path $temp | Out-Null
     $zip = Join-Path $temp 'app.zip'
     try {
+        Send-QuickWaveProgress 'download'
         Invoke-WebRequest -UseBasicParsing -TimeoutSec 45 -Uri $url -OutFile $zip
+        Send-QuickWaveProgress 'verify'
         if ((Get-FileHash -LiteralPath $zip).Hash -ne $hash) { throw 'QuickWave checksum mismatch.' }
         Expand-Archive -LiteralPath $zip -DestinationPath $temp
         $source = Join-Path $temp 'quickwave'
@@ -41,6 +54,7 @@ function Update-QuickWave {
         }
         try {
             foreach ($file in $files) { Copy-Item -LiteralPath (Join-Path $source $file) -Destination $app -Force }
+            Send-QuickWaveProgress 'apply'
             & $spicetify -n apply
             if ($LASTEXITCODE -ne 0) { throw 'Spicetify apply failed.' }
         } catch {
@@ -98,6 +112,7 @@ try {
         $response = $context.Response
         $origin = $request.Headers['Origin']
         $restart = $false
+        $streamResponse = $null
         try {
             if ($origin -cnotin @('https://xpui.app.spotify.com', 'https://open.spotify.com') -or
                 $request.Url.AbsolutePath -cne '/update' -or $request.UserHostName -cne '127.0.0.1:46423') {
@@ -107,7 +122,7 @@ try {
             $response.Headers['Access-Control-Allow-Origin'] = $origin
             $response.Headers['Vary'] = 'Origin'
             $response.Headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            $response.Headers['Access-Control-Allow-Headers'] = 'X-QuickWave-Version'
+            $response.Headers['Access-Control-Allow-Headers'] = 'X-QuickWave-Version, X-QuickWave-Progress'
             $response.Headers['Access-Control-Allow-Private-Network'] = 'true'
             if ($request.HttpMethod -eq 'OPTIONS') { $response.StatusCode = 204; continue }
             $RequestedVersion = $request.Headers['X-QuickWave-Version']
@@ -117,13 +132,20 @@ try {
             }
             $enabled = & $spicetify config custom_apps
             if ((($enabled -join '|') -split '\|') -notcontains 'quickwave') { throw 'QuickWave is disabled.' }
-            Update-QuickWave
             $response.Headers['Access-Control-Expose-Headers'] = 'X-QuickWave-Restart-In'
             $response.Headers['X-QuickWave-Restart-In'] = '5'
-            $response.StatusCode = 204
+            if ($request.Headers['X-QuickWave-Progress'] -eq '1') {
+                $response.ContentType = 'application/x-ndjson; charset=utf-8'
+                $response.SendChunked = $true
+                $streamResponse = $response
+            }
+            Update-QuickWave
+            if ($streamResponse) { Send-QuickWaveProgress 'done' }
+            else { $response.StatusCode = 204 }
             $restart = $true
         } catch {
-            $response.StatusCode = 500
+            if ($streamResponse) { Send-QuickWaveProgress 'error' }
+            else { $response.StatusCode = 500 }
             Set-Content -LiteralPath $log -Value $_.Exception.Message -Encoding UTF8
         } finally {
             $response.Close()

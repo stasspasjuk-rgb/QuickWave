@@ -1,10 +1,10 @@
 <p align="center"><img src="media/logo.svg" width="96" alt="Логотип QuickWave"></p>
 
-# QuickWave 2.5.1
+# QuickWave 2.5.2
 
 Персональная волна в Spotify Desktop через Spicetify. Запускай подбор с главного экрана, меняй настроение и жанры в боковой панели или разворачивай волну на весь экран.
 
-[Релиз 2.5.1](https://github.com/stasspasjuk-rgb/QuickWave/releases/tag/v2.5.1) · [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.5.1/QuickWave-CustomApp.zip) · [Telegram](https://t.me/QuickDeveloper_bot)
+[Релиз 2.5.2](https://github.com/stasspasjuk-rgb/QuickWave/releases/tag/v2.5.2) · [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.5.2/QuickWave-CustomApp.zip) · [Telegram](https://t.me/QuickDeveloper_bot)
 
 ![Запуск волны и выбор настроения в QuickWave 2.4.6](media/wave-2.4.6.gif)
 
@@ -24,7 +24,7 @@
 ```powershell
 $installer = Join-Path $env:TEMP ('QuickWave-' + [guid]::NewGuid() + '.ps1')
 try {
-    Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.5.1/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
+    Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.5.2/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Install
     if ($LASTEXITCODE -ne 0) { throw 'Установка QuickWave не завершилась' }
 } finally {
@@ -34,7 +34,7 @@ try {
 
 3. Перезапусти Spotify и открой **QuickWave** в боковой панели.
 
-При переходе с 2.4.5 или более ранней версии выполни этот блок один раз. Он заменит старый помощник, который обращался к GitHub REST API и мог получать ошибку лимита. Новый читает файл версии из репозитория и сверяет SHA-256 ZIP перед установкой. Окно PowerShell после установки можно закрыть. Чтобы получить пятисекундный отсчёт до перезапуска при обновлениях, один раз установи 2.5.1 этим способом.
+При переходе с 2.4.5 или более ранней версии выполни этот блок один раз. Он заменит старый помощник, который обращался к GitHub REST API и мог получать ошибку лимита. Новый читает файл версии из репозитория и сверяет SHA-256 ZIP перед установкой. Окно PowerShell после установки можно закрыть. Чтобы получить шкалу этапов установки и пятисекундный отсчёт до перезапуска при обновлениях, один раз установи 2.5.2 этим способом.
 
 ## macOS и Linux
 

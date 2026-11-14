@@ -504,7 +504,7 @@
           return response.json();
         }).then(release=>{
           if(release.draft||release.prerelease||!/^v\d+\.\d+\.\d+$/.test(release.tag))throw new Error();
-          const installed=[2,5,1];
+          const installed=[2,5,2];
           const remote=release.tag.slice(1).split(".").map(Number);
           const first=remote.findIndex((value,index)=>value!==installed[index]);
           const update=first>=0&&remote[first]>installed[first]?release.tag:null;
@@ -516,7 +516,6 @@
       new S.Playbar.Button("Открыть QuickWave",'<path d="M2 12h4l3-7 5 14 4-10 2 3h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',()=>{
         const history=S.Platform.History;
         if(history.location?.pathname!=="/quickwave")history.push("/quickwave");
-        else globalThis.dispatchEvent(new Event("quickwave:reopen"));
       });
     }
     function registerSongMenu() {
@@ -524,14 +523,34 @@
         if (typeof document !== "undefined") setTimeout(registerSongMenu, 800);
         return;
       }
-      new S.ContextMenu.Item("Волна по песне", async ([uri]) => {
+      const launch = async uri => {
         try {
           await playSongWave(uri);
           S.showNotification?.("Волна по песне включена");
         } catch {
           S.showNotification?.("Не удалось включить волну по песне", true);
         }
-      }, uris => uris.length === 1 && trackUri.test(uris[0])).register();
+      };
+      const trackFromMenu = (props, target) => {
+        const uris = S.ContextMenuV2.parseProps?.(props)?.[0];
+        if (uris?.length) return uris.length === 1 && trackUri.test(uris[0]) ? uris[0] : null;
+        const playerArea = target?.closest?.('.main-nowPlayingBar-nowPlayingBar, .Root__now-playing-bar, [data-testid="now-playing-widget"]');
+        const uri = S.Player.data?.item?.uri;
+        return playerArea && trackUri.test(uri) ? uri : null;
+      };
+      if (S.ContextMenuV2?.Item) {
+        new S.ContextMenuV2.Item({
+          children: "Волна по песне",
+          shouldAdd: (props, trigger, target) => Boolean(trackFromMenu(props, target)),
+          onClick: ({props, target}) => {
+            const uri = trackFromMenu(props, target);
+            if (uri) void launch(uri);
+          }
+        }).register();
+      } else {
+        new S.ContextMenu.Item("Волна по песне", ([uri]) => launch(uri),
+          uris => uris.length === 1 && trackUri.test(uris[0])).register();
+      }
     }
     registerSongMenu();
     S.Player.addEventListener("songchange", () => { sample(); void feed(); });

@@ -255,3 +255,22 @@ radial-gradient(ellipse 46% calc(39% + var(--qw-pulse,0)*9%) at 60% 63%,var(--wa
 @keyframes qw-intro{0%{opacity:0;transform:translateY(14px) scale(.94);filter:blur(9px)}28%,48%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}100%{opacity:0;transform:translateY(-28px) scale(1.07);filter:blur(4px)}}
 @keyframes qw-content-reveal{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.qw-intro{display:none}.qw-hero-content:has(.qw-intro)>:not(.qw-intro){animation:none}}
+
+.qw-full-wave .qw-search-shortcut{right:62px}
+.qw-brand{color:#fff;background:#13111ee8;padding:6px 12px;border-radius:99px;animation:none}
+.qw-hero-content,.qw-hero-content h1,.qw-hero-content>.qw-play,.qw-hero-content>.qw-configure{animation:none}
+.qw-hero-content:has(.qw-intro)>:not(.qw-intro){animation:qw-content-reveal .48s .52s both}
+.qw-full-wave .qw-wave-settings[data-closing=true]{animation:qw-drawer-out .22s ease-in both;pointer-events:none}
+@keyframes qw-drawer-out{to{opacity:0;transform:translateX(24px)}}
+.qw-reset-history,.qw-how summary,.qw-search-status{display:flex;align-items:center;gap:8px}
+.qw-reset-history{margin-top:12px;color:#ffd3dd;border-color:#da789064}
+.qw-how{margin:0}
+.qw-how p{line-height:1.55}
+.qw-search-results li{animation:qw-content-reveal .28s ease both}
+.qw-search-status{min-height:28px}
+.qw-spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--qw-border);border-top-color:var(--qw-accent);animation:qw-spinner .7s linear infinite}
+.qw-check input[role=switch]{appearance:none;flex:0 0 34px;width:34px;height:20px;border-radius:99px;border:1px solid var(--qw-border);background:#3a3544;position:relative;cursor:pointer;transition:background .2s}
+.qw-check input[role=switch]::after{content:"";position:absolute;inset:3px auto auto 3px;width:12px;height:12px;border-radius:50%;background:white;transition:transform .2s}
+.qw-check input[role=switch]:checked{background:var(--qw-accent)}
+.qw-check input[role=switch]:checked::after{transform:translateX(14px);background:#171422}
+@media(prefers-reduced-motion:reduce){.qw-full-wave .qw-wave-settings[data-closing=true],.qw-search-results li,.qw-spinner{animation:none}.qw-check input[role=switch],.qw-check input[role=switch]::after{transition:none}}
