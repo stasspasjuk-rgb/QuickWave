@@ -169,7 +169,7 @@
 .qw-full-wave .qw-hero{min-height:max(390px,calc(100vh - 230px));position:static;isolation:auto;background:none;border:0;overflow:visible}
 .qw-full-wave .qw-hero-content{position:relative;z-index:1}
 .qw-full-wave .qw-orb{inset:0 0 auto;width:100%;height:max(510px,calc(100vh - 95px));aspect-ratio:auto;transform:none;rotate:none;scale:none;border-radius:0;filter:hue-rotate(var(--qw-hue,0deg));background:
-radial-gradient(ellipse calc(30% + var(--qw-pulse,0)*19%) calc(37% + var(--qw-pulse,0)*17%) at 57% 38%,color-mix(in srgb,var(--qw-custom,var(--wave-b)) 85%,white),transparent 100%),
+radial-gradient(ellipse calc(30% + var(--qw-pulse,0)*19%) calc(37% + var(--qw-pulse,0)*17% + var(--qw-drift,0)*7%) at calc(57% + var(--qw-drift,0)*9%) 38%,color-mix(in srgb,var(--qw-custom,var(--wave-b)) 85%,white),transparent 100%),
 radial-gradient(ellipse calc(39% + var(--qw-pulse,0)*6%) 46% at 44% 53%,var(--qw-custom,var(--wave-a)),transparent 100%),
 radial-gradient(ellipse 46% calc(39% + var(--qw-pulse,0)*9%) at 60% 63%,var(--wave-c),transparent 100%)}
 .qw-full-wave .qw-orb[data-active=false]{opacity:.32}

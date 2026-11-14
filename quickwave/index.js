@@ -10,7 +10,7 @@ async function startSongWave(track) {
   await Spicetify.Player.playUri(playlist);
 }
 
-const quickWaveVersion = "2.4.9";
+const quickWaveVersion = "2.4.10";
 
 function songSearchPath(query) {
   const term = query.trim();
@@ -123,18 +123,19 @@ function QuickWavePage() {
   useEffect(()=>{ void checkUpdates(true); },[]);
   useEffect(()=>{
     const player=Spicetify.Player;
-    if(!(state?.active||notice==="Волна по песне включена") || !orb.current || typeof requestAnimationFrame!=="function" || matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+    if(!orb.current || typeof requestAnimationFrame!=="function" || matchMedia("(prefers-reduced-motion: reduce)").matches)return;
     let cancelled=false, frame, beats=[], segments=[], beatIndex=0, segmentIndex=0, lastPos=0;
     const node=orb.current;
     node.style.setProperty("--qw-pulse","0");
     node.style.setProperty("--qw-hue","0deg");
-    if(track?.uri && Spicetify.getAudioData){
+    node.style.setProperty("--qw-drift","0");
+    if(/^spotify:track:[A-Za-z0-9]{22}$/.test(track?.uri) && Spicetify.getAudioData){
       Promise.resolve().then(()=>Spicetify.getAudioData(track.uri)).then(data=>{
         if(!cancelled){
           const markers=data?.beats||data?.track?.beats;
-          beats=Array.isArray(markers)?markers.filter(beat=>Number.isFinite(beat?.start)):[];
+          beats=Array.isArray(markers)?markers.filter(beat=>Number.isFinite(beat?.start)).sort((a,b)=>a.start-b.start):[];
           const dynamics=data?.segments||data?.track?.segments;
-          segments=Array.isArray(dynamics)?dynamics:[];
+          segments=Array.isArray(dynamics)?dynamics.filter(segment=>Number.isFinite(segment?.start)).sort((a,b)=>a.start-b.start):[];
         }
       }).catch(()=>{});
     }
@@ -149,13 +150,18 @@ function QuickWavePage() {
       const beat=beats[beatIndex];
       const volume=Math.min(1,Math.max(0,(Number(player?.getVolume?.())||0)));
       const loudness=segments[segmentIndex]?.loudness_max;
-      const pulse=waveBeat(position,beat,loudness,volume);
+      const nextBeat=beats[beatIndex+1];
+      const gap=nextBeat?nextBeat.start-beat.start:beat.duration;
+      const pulse=waveBeat(position,gap>0?{start:beat.start,duration:gap}:beat,loudness,volume);
+      const phase=gap>0?Math.max(0,Math.min(1,(position-beat.start)/gap)):0;
+      const phrase=beatIndex+phase;
       node.style.setProperty("--qw-pulse",pulse.toFixed(3));
-      node.style.setProperty("--qw-hue",`${Math.sin(beatIndex/18)*pulse*25}deg`);
+      node.style.setProperty("--qw-hue",`${(Math.sin(phrase/13)*34).toFixed(2)}deg`);
+      node.style.setProperty("--qw-drift",Math.sin(phrase/7).toFixed(3));
     };
     frame=requestAnimationFrame(paint);
     return ()=>{cancelled=true;cancelAnimationFrame(frame);};
-  },[track?.uri,state?.active,notice==="Волна по песне включена"]);
+  },[track?.uri]);
   useEffect(()=>{
     const player=Spicetify.Player;
     const update=()=>setTrack(player?.data?.item);
@@ -243,7 +249,7 @@ function QuickWavePage() {
         h("button",{className:"qw-chip",type:"button",disabled:updateRunning,onClick:()=>{if(release){sessionStorage.setItem("quickwave:dismissed",release);setRelease(null);}updateDialog.current.close();}},release?"Позже":"Готово"))),
     h("section", { className: "qw-hero", "data-launching":launching, "aria-labelledby": "qw-title" },
       h("div",{className:"qw-launch-ring","aria-hidden":true}),
-      h("div", { className: "qw-orb", ref:orb, "data-active": Boolean(state?.active||notice==="Волна по песне включена"), "aria-hidden": true },
+      h("div", { className: "qw-orb", ref:orb, "data-active": Boolean(track?.uri), "aria-hidden": true },
         h("div",{className:"qw-beat-ring"})),
       h("div", { className: "qw-hero-content" },
         h("h1", { id: "qw-title" }, "Моя волна"),
@@ -257,17 +263,6 @@ function QuickWavePage() {
         h("button", { className:"qw-chip qw-configure", type:"button", disabled:!state,
           "aria-expanded":showWaveSettings,"aria-controls":showWaveSettings?"qw-wave-settings":undefined,
           onClick:()=>{setShowWaveSettings(!showWaveSettings);setConfirm(false);} },icon("settings"),"Настроить"),
-        h("form",{className:"qw-song-search",role:"search",onSubmit:async event=>{
-          event.preventDefault();
-          const path=songSearchPath(songQuery);
-          if(!path)return;
-          try {
-            if(document.fullscreenElement===root.current)await document.exitFullscreen();
-            Spicetify.Platform.History.push(path);
-          } catch { Spicetify.showNotification?.("Не удалось открыть поиск Spotify",true); }
-        }},
-          h("input",{type:"search",value:songQuery,maxLength:200,placeholder:"Трек или исполнитель","aria-label":"Поиск песен в Spotify",onChange:event=>setSongQuery(event.target.value)}),
-          h("button",{className:"qw-chip",type:"submit",disabled:!songQuery.trim()},"Найти")),
         h("span", { className: "qw-status", role: "status" }, notice||status))),
     state && h(Spicetify.React.Fragment, null,
       state.note && h("p", { className: "qw-message", role: "status" }, state.note),
@@ -276,7 +271,7 @@ function QuickWavePage() {
           h("div",null,h("h2",{id:"qw-wave-settings-title"},"Настроить волну"),
             h("p",null,"Выбор применяется к следующему подбору.")),
           h("button",{className:"qw-chip",type:"button",onClick:()=>{setShowWaveSettings(false);setConfirm(false);}},"Готово")),
-      h("nav",{className:"qw-chips qw-settings-tabs","aria-label":"Разделы настроек"},chips(Object.fromEntries(["Настроение","Жанры","Профиль","Ещё"].map(name=>[name,name])),tab,setTab)),
+      h("nav",{className:"qw-chips qw-settings-tabs","aria-label":"Разделы настроек"},chips(Object.fromEntries(["Настроение","Жанры","Поиск","Профиль","Ещё"].map(name=>[name,name])),tab,setTab)),
       h("div", { className: "qw-grid qw-settings-grid" },
         tab==="Настроение" && h("section", { className: "qw-panel" },
           h("h2", null, "Настроение"),
@@ -318,6 +313,17 @@ function QuickWavePage() {
               h("button", { className: "qw-chip", type: "button", onClick: () => { api.reset(); setConfirm(false); } }, "Очистить историю"),
               h("button", { className: "qw-chip", type: "button", onClick: () => setConfirm(false) }, "Отмена"))
             : h("button", { className: "qw-link", type: "button", onClick: () => setConfirm(true) }, "Сбросить историю"))),
+      tab==="Поиск" && h("section",{className:"qw-panel qw-wide"},h("h2",null,"Поиск песен"),h("form",{className:"qw-song-search",role:"search",onSubmit:async event=>{
+          event.preventDefault();
+          const path=songSearchPath(songQuery);
+          if(!path)return;
+          try {
+            if(document.fullscreenElement===root.current)await document.exitFullscreen();
+            Spicetify.Platform.History.push(path);
+          } catch { Spicetify.showNotification?.("Не удалось открыть поиск Spotify",true); }
+        }},
+          h("input",{type:"search",value:songQuery,maxLength:200,placeholder:"Трек или исполнитель","aria-label":"Поиск песен в Spotify",onChange:event=>setSongQuery(event.target.value)}),
+          h("button",{className:"qw-chip",type:"submit",disabled:!songQuery.trim()},"Найти"))),
       tab==="Ещё" && h("div",{className:"qw-panel qw-wide"},h("button",{className:"qw-chip qw-song",type:"button",disabled:!/^spotify:track:[A-Za-z0-9]{22}$/.test(track?.uri)||notice==="Запускаем волну…",onClick:async()=>{
           const current=Spicetify.Player.data?.item;
           if(!/^spotify:track:[A-Za-z0-9]{22}$/.test(current?.uri))return;
