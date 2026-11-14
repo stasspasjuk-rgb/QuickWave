@@ -10,16 +10,21 @@ async function startSongWave(track) {
   await Spicetify.Player.playUri(playlist);
 }
 
-const quickWaveVersion = "2.4.8";
+const quickWaveVersion = "2.4.9";
+
+function songSearchPath(query) {
+  const term = query.trim();
+  return term ? "/search/" + encodeURIComponent(term) : "";
+}
 
 function waveBeat(position, beat, loudness, volume) {
   if (!beat) return 0;
   const age = position - beat.start;
-  const duration = Math.min(.38, (beat.duration || .5) * .88);
+  const duration = Math.min(.42, (beat.duration || .5) * .88);
   if (age < 0 || age >= duration) return 0;
-  const strength = Number.isFinite(loudness) ? Math.max(.25, Math.min(1, (loudness + 42) / 42)) : .65;
-  const attack = Math.min(1, age / .035);
-  return Math.sin(attack * Math.PI / 2) * (1 - age / duration) ** 1.5 * strength * Math.sqrt(volume);
+  const strength = Number.isFinite(loudness) ? Math.max(.55, Math.min(1, (loudness + 42) / 42)) : .8;
+  const attack = Math.min(1, age / .024);
+  return Math.sin(attack * Math.PI / 2) * (1 - age / duration) ** 1.35 * strength * (.65 + .35 * Math.sqrt(volume));
 }
 
 async function quickWaveRelease() {
@@ -53,6 +58,7 @@ function QuickWavePage() {
   const { createElement: h, useEffect, useState, useRef } = Spicetify.React;
   const [state, setState] = useState(null);
   const [custom, setCustom] = useState("");
+  const [songQuery, setSongQuery] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [track, setTrack] = useState(Spicetify.Player?.data?.item);
   const [theme, setTheme] = useState(()=>Spicetify.LocalStorage.get("quickwave:theme")||"violet");
@@ -118,23 +124,24 @@ function QuickWavePage() {
   useEffect(()=>{
     const player=Spicetify.Player;
     if(!(state?.active||notice==="Волна по песне включена") || !orb.current || typeof requestAnimationFrame!=="function" || matchMedia("(prefers-reduced-motion: reduce)").matches)return;
-    let cancelled=false, frame, beats=[], segments=[], beatIndex=0, segmentIndex=0, lastPos=0, lastPaint=-1, lastPlaying;
+    let cancelled=false, frame, beats=[], segments=[], beatIndex=0, segmentIndex=0, lastPos=0;
+    const node=orb.current;
+    node.style.setProperty("--qw-pulse","0");
+    node.style.setProperty("--qw-hue","0deg");
     if(track?.uri && Spicetify.getAudioData){
       Promise.resolve().then(()=>Spicetify.getAudioData(track.uri)).then(data=>{
-      if(!cancelled){beats=data?.beats||data?.track?.beats||[];segments=data?.segments||data?.track?.segments||[];}
+        if(!cancelled){
+          const markers=data?.beats||data?.track?.beats;
+          beats=Array.isArray(markers)?markers.filter(beat=>Number.isFinite(beat?.start)):[];
+          const dynamics=data?.segments||data?.track?.segments;
+          segments=Array.isArray(dynamics)?dynamics:[];
+        }
       }).catch(()=>{});
     }
     const paint=()=>{
       frame=requestAnimationFrame(paint);
-      const playing=player?.isPlaying?.()===true;
-      const node=orb.current;
-      if(!node)return;
-      if(lastPlaying!==playing)node.dataset.playing=String(playing);
-      lastPlaying=playing;
-      if(!playing)return;
+      if(player?.isPlaying?.()!==true||!beats.length)return;
       const position=(player?.getProgress?.()||0)/1000;
-      if(position===lastPaint)return;
-      lastPaint=position;
       if(position<lastPos || position-lastPos>1){beatIndex=0;segmentIndex=0;}
       lastPos=position;
       while(beats[beatIndex+1]?.start<=position)beatIndex++;
@@ -144,9 +151,7 @@ function QuickWavePage() {
       const loudness=segments[segmentIndex]?.loudness_max;
       const pulse=waveBeat(position,beat,loudness,volume);
       node.style.setProperty("--qw-pulse",pulse.toFixed(3));
-      node.style.setProperty("--qw-spin",`${-12+pulse*16}deg`);
       node.style.setProperty("--qw-hue",`${Math.sin(beatIndex/18)*pulse*25}deg`);
-      node.style.setProperty("--qw-shape",`${(44+pulse*25).toFixed(1)}%`);
     };
     frame=requestAnimationFrame(paint);
     return ()=>{cancelled=true;cancelAnimationFrame(frame);};
@@ -238,7 +243,8 @@ function QuickWavePage() {
         h("button",{className:"qw-chip",type:"button",disabled:updateRunning,onClick:()=>{if(release){sessionStorage.setItem("quickwave:dismissed",release);setRelease(null);}updateDialog.current.close();}},release?"Позже":"Готово"))),
     h("section", { className: "qw-hero", "data-launching":launching, "aria-labelledby": "qw-title" },
       h("div",{className:"qw-launch-ring","aria-hidden":true}),
-      h("div", { className: "qw-orb", ref:orb, "data-active": Boolean(state?.active||notice==="Волна по песне включена"), "aria-hidden": true }),
+      h("div", { className: "qw-orb", ref:orb, "data-active": Boolean(state?.active||notice==="Волна по песне включена"), "aria-hidden": true },
+        h("div",{className:"qw-beat-ring"})),
       h("div", { className: "qw-hero-content" },
         h("h1", { id: "qw-title" }, "Моя волна"),
         h("button", { type: "button", className: "qw-play", disabled: !state, onClick: () => {
@@ -251,6 +257,17 @@ function QuickWavePage() {
         h("button", { className:"qw-chip qw-configure", type:"button", disabled:!state,
           "aria-expanded":showWaveSettings,"aria-controls":showWaveSettings?"qw-wave-settings":undefined,
           onClick:()=>{setShowWaveSettings(!showWaveSettings);setConfirm(false);} },icon("settings"),"Настроить"),
+        h("form",{className:"qw-song-search",role:"search",onSubmit:async event=>{
+          event.preventDefault();
+          const path=songSearchPath(songQuery);
+          if(!path)return;
+          try {
+            if(document.fullscreenElement===root.current)await document.exitFullscreen();
+            Spicetify.Platform.History.push(path);
+          } catch { Spicetify.showNotification?.("Не удалось открыть поиск Spotify",true); }
+        }},
+          h("input",{type:"search",value:songQuery,maxLength:200,placeholder:"Трек или исполнитель","aria-label":"Поиск песен в Spotify",onChange:event=>setSongQuery(event.target.value)}),
+          h("button",{className:"qw-chip",type:"submit",disabled:!songQuery.trim()},"Найти")),
         h("span", { className: "qw-status", role: "status" }, notice||status))),
     state && h(Spicetify.React.Fragment, null,
       state.note && h("p", { className: "qw-message", role: "status" }, state.note),

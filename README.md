@@ -1,10 +1,10 @@
 <p align="center"><img src="media/logo.svg" width="96" alt="Логотип QuickWave"></p>
 
-# QuickWave 2.4.8
+# QuickWave 2.4.9
 
 Персональная волна в Spotify Desktop через Spicetify. Запускай подбор с главного экрана, меняй настроение и жанры в боковой панели или разворачивай волну на весь экран.
 
-[Релиз 2.4.8](https://github.com/stasspasjuk-rgb/QuickWave/releases/tag/v2.4.8) · [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.8/QuickWave-CustomApp.zip) · [Telegram](https://t.me/QuickDeveloper_bot)
+[Релиз 2.4.9](https://github.com/stasspasjuk-rgb/QuickWave/releases/tag/v2.4.9) · [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.9/QuickWave-CustomApp.zip) · [Telegram](https://t.me/QuickDeveloper_bot)
 
 ![Запуск волны и выбор настроения в QuickWave 2.4.6](media/wave-2.4.6.gif)
 
@@ -24,7 +24,7 @@
 ```powershell
 $installer = Join-Path $env:TEMP ('QuickWave-' + [guid]::NewGuid() + '.ps1')
 try {
-    Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.8/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
+    Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.9/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Install
     if ($LASTEXITCODE -ne 0) { throw 'Установка QuickWave не завершилась' }
 } finally {
@@ -51,6 +51,8 @@ rm -f "$qw_installer"
 Открой **QuickWave** в боковой панели Spotify. Для обновления выполни ту же команду. Кнопка проверки обновлений в приложении покажет новую версию и откроет эту инструкцию. Скрипт проверяет SHA-256 ZIP и берёт путь установки из `spicetify -c`.
 
 ## Интерфейс
+
+Поле поиска под волной открывает результаты Spotify по названию трека или имени исполнителя. На ударе бита загорается кольцо. Если Spotify не отдаёт метки бита, свечение остаётся статичным.
 
 - **Включить волну** добавляет треки по одному в обычную очередь Spotify. Очередь доступна через штатную кнопку плеера.
 - **Настроить** открывает панель справа. Карточки настроения и жанров подсвечиваются анимированными градиентами.

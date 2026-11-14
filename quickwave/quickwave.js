@@ -481,7 +481,7 @@
           return response.json();
         }).then(release=>{
           if(release.draft||release.prerelease||!/^v\d+\.\d+\.\d+$/.test(release.tag))throw new Error();
-          const installed=[2,4,8];
+          const installed=[2,4,9];
           const remote=release.tag.slice(1).split(".").map(Number);
           const first=remote.findIndex((value,index)=>value!==installed[index]);
           const update=first>=0&&remote[first]>installed[first]?release.tag:null;

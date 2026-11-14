@@ -169,7 +169,7 @@
 .qw-full-wave .qw-hero{min-height:max(390px,calc(100vh - 230px));position:static;isolation:auto;background:none;border:0;overflow:visible}
 .qw-full-wave .qw-hero-content{position:relative;z-index:1}
 .qw-full-wave .qw-orb{inset:0 0 auto;width:100%;height:max(510px,calc(100vh - 95px));aspect-ratio:auto;transform:none;rotate:none;scale:none;border-radius:0;filter:hue-rotate(var(--qw-hue,0deg));background:
-radial-gradient(ellipse calc(30% + var(--qw-pulse,0)*8%) calc(37% + var(--qw-pulse,0)*7%) at 57% 38%,color-mix(in srgb,var(--qw-custom,var(--wave-b)) 85%,white),transparent 100%),
+radial-gradient(ellipse calc(30% + var(--qw-pulse,0)*19%) calc(37% + var(--qw-pulse,0)*17%) at 57% 38%,color-mix(in srgb,var(--qw-custom,var(--wave-b)) 85%,white),transparent 100%),
 radial-gradient(ellipse calc(39% + var(--qw-pulse,0)*6%) 46% at 44% 53%,var(--qw-custom,var(--wave-a)),transparent 100%),
 radial-gradient(ellipse 46% calc(39% + var(--qw-pulse,0)*9%) at 60% 63%,var(--wave-c),transparent 100%)}
 .qw-full-wave .qw-orb[data-active=false]{opacity:.32}
@@ -214,3 +214,8 @@ radial-gradient(ellipse 46% calc(39% + var(--qw-pulse,0)*9%) at 60% 63%,var(--wa
 @keyframes qw-swatch{to{transform:rotate(360deg);filter:blur(4px) hue-rotate(40deg)}}
 @media(prefers-reduced-motion:reduce){.qw-mood::before{animation:none}}
 .qw-play .qw-icon{display:block;flex:0 0 20px}
+
+.qw-beat-ring{position:absolute;left:50%;top:49%;width:min(54vw,450px);aspect-ratio:1;border-radius:50%;border:2px solid var(--qw-accent);box-shadow:0 0 28px var(--qw-accent),inset 0 0 22px var(--qw-accent);opacity:calc(var(--qw-pulse,0)*.65);transform:translate(-50%,-50%) scale(calc(.86 + var(--qw-pulse,0)*.37));pointer-events:none}
+.qw-song-search{display:flex;align-items:center;gap:6px;max-width:100%;padding:4px 4px 4px 12px;border:1px solid var(--qw-border);border-radius:999px;background:var(--qw-surface)}
+.qw-song-search input{min-width:0;width:min(26vw,205px);background:transparent;border:0;color:inherit;font:inherit;font-size:11px}
+.qw-song-search .qw-chip{min-height:30px;font-size:11px}
