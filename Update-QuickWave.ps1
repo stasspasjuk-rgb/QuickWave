@@ -118,6 +118,8 @@ try {
             $enabled = & $spicetify config custom_apps
             if ((($enabled -join '|') -split '\|') -notcontains 'quickwave') { throw 'QuickWave is disabled.' }
             Update-QuickWave
+            $response.Headers['Access-Control-Expose-Headers'] = 'X-QuickWave-Restart-In'
+            $response.Headers['X-QuickWave-Restart-In'] = '5'
             $response.StatusCode = 204
             $restart = $true
         } catch {
@@ -127,7 +129,7 @@ try {
             $response.Close()
         }
         if ($restart) {
-            Start-Sleep -Milliseconds 1400
+            Start-Sleep -Seconds 5
             & $spicetify restart
         }
     }

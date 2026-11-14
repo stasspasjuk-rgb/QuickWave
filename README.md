@@ -1,10 +1,10 @@
 <p align="center"><img src="media/logo.svg" width="96" alt="Логотип QuickWave"></p>
 
-# QuickWave 2.4.10
+# QuickWave 2.5.0
 
 Персональная волна в Spotify Desktop через Spicetify. Запускай подбор с главного экрана, меняй настроение и жанры в боковой панели или разворачивай волну на весь экран.
 
-[Релиз 2.4.10](https://github.com/stasspasjuk-rgb/QuickWave/releases/tag/v2.4.10) · [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.10/QuickWave-CustomApp.zip) · [Telegram](https://t.me/QuickDeveloper_bot)
+[Релиз 2.5.0](https://github.com/stasspasjuk-rgb/QuickWave/releases/tag/v2.5.0) · [Скачать ZIP](https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.5.0/QuickWave-CustomApp.zip) · [Telegram](https://t.me/QuickDeveloper_bot)
 
 ![Запуск волны и выбор настроения в QuickWave 2.4.6](media/wave-2.4.6.gif)
 
@@ -24,7 +24,7 @@
 ```powershell
 $installer = Join-Path $env:TEMP ('QuickWave-' + [guid]::NewGuid() + '.ps1')
 try {
-    Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.4.10/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
+    Invoke-WebRequest -UseBasicParsing 'https://github.com/stasspasjuk-rgb/QuickWave/releases/download/v2.5.0/Update-QuickWave.ps1' -OutFile $installer -ErrorAction Stop
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Install
     if ($LASTEXITCODE -ne 0) { throw 'Установка QuickWave не завершилась' }
 } finally {
@@ -34,7 +34,7 @@ try {
 
 3. Перезапусти Spotify и открой **QuickWave** в боковой панели.
 
-При переходе с 2.4.5 или более ранней версии выполни этот блок один раз. Он заменит старый помощник, который обращался к GitHub REST API и мог получать ошибку лимита. Новый читает файл версии из репозитория и сверяет SHA-256 ZIP перед установкой. Окно PowerShell после установки можно закрыть.
+При переходе с 2.4.5 или более ранней версии выполни этот блок один раз. Он заменит старый помощник, который обращался к GitHub REST API и мог получать ошибку лимита. Новый читает файл версии из репозитория и сверяет SHA-256 ZIP перед установкой. Окно PowerShell после установки можно закрыть. Чтобы получить пятисекундный отсчёт до перезапуска при обновлениях, один раз установи 2.5.0 этим способом.
 
 ## macOS и Linux
 
@@ -52,7 +52,7 @@ rm -f "$qw_installer"
 
 ## Интерфейс
 
-Поле «Настроить → Поиск» открывает результаты Spotify по названию трека или имени исполнителя. Цвет и форма плавно меняются по меткам текущего трека, даже когда подбор выключен. На ударе бита загорается кольцо. Если Spotify не отдаёт метки бита, свечение остаётся статичным.
+В «Настроить → Поиск» результаты появляются внутри QuickWave. Рядом с треком можно запустить воспроизведение или волну по песне. Эта команда также доступна по правому клику на треке в Spotify. Цвет и форма плавно меняются по меткам текущего трека, даже когда подбор выключен. На ударе бита загорается кольцо. Если Spotify не отдаёт метки бита, свечение остаётся статичным.
 
 - **Включить волну** добавляет треки по одному в обычную очередь Spotify. Очередь доступна через штатную кнопку плеера.
 - **Настроить** открывает панель справа. Карточки настроения и жанров подсвечиваются анимированными градиентами.

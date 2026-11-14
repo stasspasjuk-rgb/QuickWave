@@ -219,3 +219,22 @@ radial-gradient(ellipse 46% calc(39% + var(--qw-pulse,0)*9%) at 60% 63%,var(--wa
 .qw-song-search{display:flex;align-items:center;gap:6px;max-width:100%;padding:4px 4px 4px 12px;border:1px solid var(--qw-border);border-radius:999px;background:var(--qw-surface)}
 .qw-song-search input{min-width:0;width:min(26vw,205px);background:transparent;border:0;color:inherit;font:inherit;font-size:11px}
 .qw-song-search .qw-chip{min-height:30px;font-size:11px}
+
+.qw-brand{display:flex;align-items:center;gap:8px;color:var(--qw-accent);font-size:12px;animation:qw-enter .55s both}
+.qw-brand small{font:11px system-ui;color:#fff;background:#171422b0;padding:4px 7px;border-radius:999px}
+.qw-hero-content h1{animation:qw-enter .65s .08s both}
+.qw-hero-content>.qw-play,.qw-hero-content>.qw-configure{animation:qw-enter .55s .18s both}
+.qw-close{display:grid;place-items:center;width:34px;height:34px;min-height:34px;padding:0;flex:none}
+.qw-close svg,.qw-brand svg,.qw-song-search svg{display:block;flex:none}
+.qw-song-search{width:100%;box-sizing:border-box;gap:8px;border-radius:14px;padding-left:10px}
+.qw-song-search input{width:auto;flex:1;outline-offset:2px}
+.qw-search-results{display:grid;gap:8px;padding:0;margin:12px 0 0;list-style:none}
+.qw-search-results li{display:grid;grid-template-columns:38px minmax(0,1fr) 34px 34px;align-items:center;gap:7px;padding:7px;border:1px solid var(--qw-border);border-radius:12px;background:var(--qw-surface)}
+.qw-search-results strong,.qw-search-results small{display:block;overflow-wrap:anywhere;font-size:10px}
+.qw-search-results img,.qw-search-cover{width:38px;height:38px;border-radius:8px;object-fit:cover}
+.qw-search-cover{display:grid;place-items:center;background:var(--wave-base)}
+.qw-update-progress{display:block;width:100%;height:9px;margin-top:14px;border:0;border-radius:10px;overflow:hidden;accent-color:var(--qw-accent)}
+.qw-update-progress::-webkit-progress-bar{background:#ffffff20}
+.qw-update-progress::-webkit-progress-value{background:linear-gradient(90deg,var(--wave-a),var(--qw-accent));transition:width .25s}
+.qw-update-mark[data-running=true][data-done=true] svg{animation:none;stroke-dasharray:none}
+@media(prefers-reduced-motion:reduce){.qw-brand,.qw-hero-content h1,.qw-hero-content>.qw-play,.qw-hero-content>.qw-configure{animation:none}}

@@ -218,20 +218,40 @@
     return value;
   }
 
-  async function search(variables) {
+  async function search(variables, name = "searchPlaylists", hash = playlistSearchHash) {
     const api = S.GraphQL;
     if (!api?.Request) throw new Error("Поиск Spotify недоступен в этой версии клиента");
-    const name = "searchPlaylists";
     let definition = api.Definitions?.[name];
     if (!definition) {
       const sample = Object.values(api.Definitions || {}).find(entry => entry?.constructor && entry.constructor !== Object);
       definition = sample
-        ? new sample.constructor(name, "query", playlistSearchHash, null)
-        : { name, operationName: name, operation: "query", sha256Hash: playlistSearchHash, value: null };
+        ? new sample.constructor(name, "query", hash, null)
+        : { name, operationName: name, operation: "query", sha256Hash: hash, value: null };
     }
     const result = await api.Request(definition, variables);
     if (!result || result.errors?.length) throw new Error("Spotify не вернул данные");
     return result.data || result;
+  }
+
+  async function searchSongs(query) {
+    const data = await timed(() => search({
+      searchTerm: query, offset: 0, limit: 12, numberOfTopResults: 3,
+      includeAudiobooks: false, includePreReleases: false, includeAlbumPreReleases: false,
+      includeAuthors: false, includeEpisodeContentRatingsV2: false
+    }, "searchTracks", "b02683192a98dde7966b5e6655a79eeb62713eab703eda9902c932818dd52751"));
+    const items = data.searchV2?.tracksV2?.items;
+    if (!Array.isArray(items)) throw new Error("Не удалось прочитать результаты Spotify");
+    return items.map(itemTrack).filter(Boolean);
+  }
+
+  async function playSongWave(uri) {
+    if (!trackUri.test(uri)) throw new Error("Недопустимый трек");
+    const result = await timed(() => S.CosmosAsync.get(
+      "https://spclient.wg.spotify.com/inspiredby-mix/v2/seed_to_playlist/" + uri + "?response-format=json"));
+    const playlist = result?.mediaItems?.[0]?.uri;
+    if (!/^spotify:playlist:[A-Za-z0-9]{22}$/.test(playlist)) throw new Error("Подборка недоступна");
+    await S.Player.playUri(playlist);
+    if (active) globalThis.QuickWave.toggle();
   }
 
   function playlists(term, offset) {
@@ -431,6 +451,8 @@
     if (globalThis.QuickWave) return;
     load();
     globalThis.QuickWave = {
+      searchSongs,
+      playSongWave,
       snapshot: () => ({
         settings: profile.settings, active, busy: loading, note, storageError, currentPick, pending,
         count: Object.keys(profile.tracks).length,
@@ -481,7 +503,7 @@
           return response.json();
         }).then(release=>{
           if(release.draft||release.prerelease||!/^v\d+\.\d+\.\d+$/.test(release.tag))throw new Error();
-          const installed=[2,4,10];
+          const installed=[2,5,0];
           const remote=release.tag.slice(1).split(".").map(Number);
           const first=remote.findIndex((value,index)=>value!==installed[index]);
           const update=first>=0&&remote[first]>installed[first]?release.tag:null;
@@ -496,6 +518,21 @@
         else globalThis.dispatchEvent(new Event("quickwave:reopen"));
       });
     }
+    function registerSongMenu() {
+      if (!S.ContextMenu?.Item) {
+        if (typeof document !== "undefined") setTimeout(registerSongMenu, 800);
+        return;
+      }
+      new S.ContextMenu.Item("Волна по песне", async ([uri]) => {
+        try {
+          await playSongWave(uri);
+          S.showNotification?.("Волна по песне включена");
+        } catch {
+          S.showNotification?.("Не удалось включить волну по песне", true);
+        }
+      }, uris => uris.length === 1 && trackUri.test(uris[0])).register();
+    }
+    registerSongMenu();
     S.Player.addEventListener("songchange", () => { sample(); void feed(); });
     S.Player.addEventListener("onplaypause", sample);
     setInterval(() => { sample(); void checkSaved(); void feed(); }, 2200);
