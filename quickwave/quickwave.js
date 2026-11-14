@@ -16,6 +16,9 @@
   let session;
   let pending;
   let currentPick;
+  let songSeed;
+  let songPool=[];
+  let songRequest=0;
   let active = false;
   let busy = false;
   let loading = false;
@@ -194,7 +197,7 @@
 
   function weight(r) {
     const recency = Math.pow(0.5, Math.max(0, Date.now() - r.at) / (45 * day));
-    return (r.liked ? 6 : 0) + recency * (
+    return (r.liked ? 6 : 0) + (r.more ? 12 : 0) + recency * (
       Math.min(r.plays, 12) * 0.9 + Math.min(r.completed, 10) * 0.6 +
       Math.min(r.ms / 180_000, 10) * 0.3 - Math.min(r.skips, 10) * 1.8
     );
@@ -247,12 +250,27 @@
 
   async function playSongWave(uri) {
     if (!trackUri.test(uri)) throw new Error("Недопустимый трек");
+    const request=++songRequest;
     const result = await timed(() => S.CosmosAsync.get(
       "https://spclient.wg.spotify.com/inspiredby-mix/v2/seed_to_playlist/" + uri + "?response-format=json"));
     const playlist = result?.mediaItems?.[0]?.uri;
     if (!/^spotify:playlist:[A-Za-z0-9]{22}$/.test(playlist)) throw new Error("Подборка недоступна");
-    await S.Player.playUri(playlist);
+    const playing=S.Player.data?.item?.uri;
+    const related=(await contents(playlist)).filter(track=>track.uri!==uri);
+    const candidates=related.filter(track=>track.uri!==playing);
+    if(request!==songRequest)return;
+    if(!candidates.length)throw new Error("Похожие треки недоступны");
+    const pick=candidates.find(track=>!profile.tracks[track.uri]?.ms)||candidates[0];
     if (active) globalThis.QuickWave.toggle();
+    await S.Player.playUri(pick.uri);
+    if(request!==songRequest)return;
+    songSeed=uri;
+    songPool=related;
+    active=true;
+    note="";
+    nextRetry=0;
+    emit();
+    void feed();
   }
 
   function playlists(term, offset) {
@@ -353,6 +371,7 @@
     const { taste, mood, genres } = profile.settings;
     const affinity = new Map();
     const tracks = Object.values(profile.tracks);
+    const preferredArtists = new Set(tracks.filter(track=>track.more && track.artistId).map(track=>track.artistId));
     const recentArtists = new Set(tracks.filter(r => r.ms && now - r.at < 12 * 60_000).map(r => r.artistId).filter(Boolean));
     const learnedGenres = new Set(tracks.filter(r => r.genre && r.plays >= 2 && weight(r) > 1).map(r => r.genre));
     const currentArtist = itemTrack(S.Player.data?.item)?.artistId;
@@ -360,22 +379,24 @@
       if (r.artistId) affinity.set(r.artistId, (affinity.get(r.artistId) || 0) + weight(r));
     }
     const ranked = [];
-    for (const candidate of pool) {
-      if (excluded.has(candidate.uri)) continue;
+    for (const candidate of (songSeed?songPool:pool)) {
+      if (excluded.has(candidate.uri)||candidate.uri===songSeed) continue;
       const r = profile.tracks[candidate.uri];
       const known = Boolean(candidate.liked || r?.liked || r?.plays);
       const artistWeight = Math.max(-5, Math.min(6, (affinity.get(candidate.artistId) || 0) * 0.5));
+      const boosted=preferredArtists.has(candidate.artistId);
       const genreMatch = genres.includes(candidate.genre);
       const genreAffinity = learnedGenres.has(candidate.genre);
       const moodMatch = mood !== "any" && candidate.mood === moods[mood];
       const linked = Boolean(candidate.link);
       const recent = r?.ms && now - r.at < 120 * 60_000;
       const nearArtist = candidate.artistId && (candidate.artistId === currentArtist || recentArtists.has(candidate.artistId));
-      const score = (genreMatch ? 10 : genreAffinity ? 4 : 0) + (moodMatch ? 7 : 0) + (linked ? 3 : 0) + artistWeight +
+      const score = (genreMatch ? 10 : genreAffinity ? 4 : 0) + (moodMatch ? 7 : 0) + (linked ? 3 : 0) + artistWeight + (boosted?9:0) +
         (taste === "discover" ? (known ? -4 : 5) : taste === "favorites" ? (known ? 6 : -2) : (known ? 1 : 2)) +
         (r?.liked || candidate.liked ? 2 : 0) - Math.min(r?.skips || 0, 5) * 2 -
         (recent ? 18 : 0) - (nearArtist ? 9 : 0) + Math.random() * 1.5;
       const reasons = [
+        boosted && "больше похожего по твоей отметке",
         genreMatch && `жанровая подборка «${candidate.genre}»`,
         !genreMatch && genreAffinity && `часто слушаешь «${candidate.genre}»`,
         moodMatch && "подборка по настроению",
@@ -406,7 +427,7 @@
       pending = null;
       loading = true;
       emit();
-      if (Date.now() >= refreshAt || !pool.length) await refresh(profile.settings, round++, token);
+      if (!songSeed && (Date.now() >= refreshAt || !pool.length)) await refresh(profile.settings, round++, token);
       if (token !== generation || !active) return;
       const excluded = new Set((listed || []).map(uriOf));
       excluded.add(S.Player.data?.item?.uri);
@@ -455,7 +476,7 @@
       searchSongs,
       playSongWave,
       snapshot: () => ({
-        settings: profile.settings, active, busy: loading, note, storageError, currentPick, pending,
+        settings: profile.settings, active, songSeed, busy: loading, note, storageError, currentPick, pending,
         count: Object.keys(profile.tracks).length,
         plays: Object.values(profile.tracks).reduce((sum, r) => sum + r.plays, 0)
       }),
@@ -463,6 +484,8 @@
       toggle() {
         if (active) {
           active = false;
+          songSeed=null;
+          songPool=[];
           generation++;
           emit();
           return;
@@ -504,7 +527,7 @@
           return response.json();
         }).then(release=>{
           if(release.draft||release.prerelease||!/^v\d+\.\d+\.\d+$/.test(release.tag))throw new Error();
-          const installed=[2,5,2];
+          const installed=[2,5,3];
           const remote=release.tag.slice(1).split(".").map(Number);
           const first=remote.findIndex((value,index)=>value!==installed[index]);
           const update=first>=0&&remote[first]>installed[first]?release.tag:null;
@@ -517,6 +540,27 @@
         const history=S.Platform.History;
         if(history.location?.pathname!=="/quickwave")history.push("/quickwave");
       });
+    }
+    if(S.Playbar?.Widget){
+      const feedback=new S.Playbar.Widget("Больше похожих",'<path d="M12 4v16M4 12h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',()=>{
+        const track=itemTrack(S.Player.data?.item);
+        if(!track||privateSession())return;
+        const item=row(track);
+        item.more=!item.more;
+        item.at=Date.now();
+        feedback.active=item.more;
+        refreshAt=0;
+        save();
+        emit();
+        S.showNotification?.(item.more?"Будет больше похожих треков":"Отметка снята");
+      });
+      const updateFeedback=()=>{
+        const uri=S.Player.data?.item?.uri;
+        feedback.disabled=!trackUri.test(uri);
+        feedback.active=Boolean(profile.tracks[uri]?.more);
+      };
+      updateFeedback();
+      S.Player.addEventListener("songchange",updateFeedback);
     }
     function registerSongMenu() {
       if (!S.ContextMenu?.Item) {

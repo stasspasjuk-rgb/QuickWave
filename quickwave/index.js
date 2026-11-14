@@ -2,7 +2,7 @@ function render() {
   return Spicetify.React.createElement(QuickWavePage);
 }
 
-const quickWaveVersion = "2.5.2";
+const quickWaveVersion = "2.5.3";
 
 function waveEnergy(position, segment) {
   if (!segment) return 0;
@@ -60,6 +60,7 @@ function QuickWavePage() {
   const [custom, setCustom] = useState("");
   const [songQuery, setSongQuery] = useState("");
   const [songs, setSongs] = useState([]);
+  const searchDialog = useRef(null);
   const [searchStatus, setSearchStatus] = useState("");
   const searchRequest = useRef(0);
   async function findSongs(event) {
@@ -80,7 +81,7 @@ function QuickWavePage() {
   }
   async function launchSongWave(uri) {
     setNotice("Запускаем волну…");
-    try { await globalThis.QuickWave.playSongWave(uri); setNotice("Волна по песне включена"); }
+    try { await globalThis.QuickWave.playSongWave(uri); setNotice(""); }
     catch { setNotice("Не удалось включить волну по песне. Попробуй другой трек."); }
   }
   const [confirm, setConfirm] = useState(false);
@@ -291,11 +292,25 @@ function QuickWavePage() {
   const customPalette=/^#[a-f0-9]{6}$/i.test(color)?{"--qw-custom":color}:undefined;
   return h("main", { className: "qw-app qw-full-wave", ref:root, style:customPalette, "data-theme": showTheme?previewTheme:theme, "data-background":showTheme?previewBackground:background, "data-settings-open":showWaveSettings,
     onKeyDown:event=>{if(event.key==="Escape"&&showWaveSettings&&!event.defaultPrevented)closeSettings();} },
-    h("button",{className:"qw-chip qw-fullscreen qw-search-shortcut",type:"button","aria-label":"Открыть поиск",title:"Поиск песен",disabled:!state,onClick:()=>openSettings("Поиск")},icon("search")),
+    h("button",{className:"qw-chip qw-fullscreen qw-search-shortcut",type:"button","aria-label":"Открыть поиск",title:"Поиск песен",disabled:!state,onClick:()=>searchDialog.current.showModal()},icon("search")),
     h("button",{className:"qw-chip qw-fullscreen",type:"button","aria-label":"Полноэкранный режим",title:"Полноэкранный режим",onClick:async()=>{
       try { if(document.fullscreenElement===root.current)await document.exitFullscreen();else await root.current.requestFullscreen(); }
       catch { Spicetify.showNotification?.("Полноэкранный режим недоступен",true); }
     }},h("svg",{width:20,height:20,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,"aria-hidden":true},h("path",{d:"M9 4H4v5m11-5h5v5m0 6v5h-5M4 15v5h5",strokeLinecap:"round"}))),
+    h("dialog",{ref:searchDialog,className:"qw-theme-dialog qw-search-panel","aria-labelledby":"qw-search-title"},
+        h("header",{className:"qw-wave-settings-header"},h("h2",{id:"qw-search-title"},"Поиск песен"),h("button",{className:"qw-chip qw-close",type:"button","aria-label":"Закрыть поиск",onClick:()=>searchDialog.current.close()},icon("close"))),
+        h("form",{className:"qw-song-search",role:"search",onSubmit:findSongs},
+          icon("search"),
+          h("input",{type:"search",value:songQuery,maxLength:200,placeholder:"Трек или исполнитель","aria-label":"Поиск песен",onChange:event=>setSongQuery(event.target.value)}),
+          h("button",{className:"qw-chip",type:"submit",disabled:!songQuery.trim()},"Найти")),
+        searchStatus&&h("p",{className:"qw-search-status",role:"status"},searchStatus==="Ищем треки…"&&h("span",{className:"qw-spinner","aria-hidden":true}),searchStatus),
+        songs.length>0&&h("ul",{className:"qw-search-results"},songs.map(song=>h("li",{key:song.uri},
+          song.cover?h("img",{src:song.cover,alt:"",loading:"lazy"}):h("span",{className:"qw-search-cover"},icon("song")),
+          h("div",null,h("strong",null,song.name),h("small",null,song.artist)),
+          h("button",{className:"qw-chip qw-close",type:"button",title:"Воспроизвести","aria-label":"Воспроизвести "+song.name,onClick:async()=>{
+            try { await Spicetify.Player.playUri(song.uri); } catch { setSearchStatus("Не удалось воспроизвести трек."); }
+          }},icon("play")),
+          h("button",{className:"qw-chip qw-close",type:"button",title:"Волна по песне","aria-label":"Волна по песне "+song.name,disabled:notice==="Запускаем волну…",onClick:()=>launchSongWave(song.uri)},icon("song")))))),
     h("dialog",{className:"qw-theme-dialog",ref:themeDialog,"aria-labelledby":"qw-theme-title",onClose:()=>setShowTheme(false)},
       h("h2",{id:"qw-theme-title"},"Оформление"),
       h("div",{className:"qw-preview qw-preview-refined","data-background":previewBackground},h("div",{className:"qw-preview-orb","aria-hidden":true}),h("strong",null,"Моя волна")),
@@ -338,7 +353,7 @@ function QuickWavePage() {
         h("button", { className:"qw-chip qw-configure", type:"button", disabled:!state,
           "aria-expanded":showWaveSettings,"aria-controls":showWaveSettings?"qw-wave-settings":undefined,
           onClick:()=>showWaveSettings&&!closingSettings?closeSettings():openSettings() },icon("settings"),"Настроить"),
-        h("span", { className: "qw-status", role: "status" }, notice||status))),
+        h("span", { className: "qw-status", role: "status" }, notice||(state?.songSeed?"Волна по песне включена":status)))),
     state && h(Spicetify.React.Fragment, null,
       state.note && h("p", { className: "qw-message", role: "status" }, state.note),
       showWaveSettings && h("aside", { className:"qw-wave-settings","data-closing":closingSettings,inert:closingSettings?true:undefined,id:"qw-wave-settings","aria-labelledby":"qw-wave-settings-title" },
@@ -346,7 +361,7 @@ function QuickWavePage() {
           h("div",null,h("h2",{id:"qw-wave-settings-title"},"Настроить волну"),
             h("p",null,"Выбор применяется к следующему подбору.")),
           h("button",{className:"qw-chip qw-close",type:"button","aria-label":"Закрыть настройки",onClick:closeSettings},icon("close"))),
-      h("nav",{className:"qw-chips qw-settings-tabs","aria-label":"Разделы настроек"},chips(Object.fromEntries(["Настроение","Жанры","Поиск","Профиль","Ещё"].map(name=>[name,name])),tab,setTab)),
+      h("nav",{className:"qw-chips qw-settings-tabs","aria-label":"Разделы настроек"},chips(Object.fromEntries(["Настроение","Жанры","Профиль","Ещё"].map(name=>[name,name])),tab,setTab)),
       h("div", { className: "qw-grid qw-settings-grid" },
         tab==="Настроение" && h("section", { className: "qw-panel" },
           h("h2", null, "Настроение"),
@@ -391,20 +406,6 @@ function QuickWavePage() {
               h("button", { className: "qw-chip", type: "button", onClick: () => { api.reset(); setConfirm(false); } }, "Очистить историю"),
               h("button", { className: "qw-chip", type: "button", onClick: () => setConfirm(false) }, "Отмена"))
             : h("button", { className: "qw-chip qw-reset-history", type: "button", onClick: () => setConfirm(true) }, icon("update"),"Сбросить историю"))),
-      tab==="Поиск" && h("section",{className:"qw-panel qw-wide qw-search-panel"},
-        h("h2",null,"Поиск песен"),
-        h("form",{className:"qw-song-search",role:"search",onSubmit:findSongs},
-          icon("search"),
-          h("input",{type:"search",value:songQuery,maxLength:200,placeholder:"Трек или исполнитель","aria-label":"Поиск песен",onChange:event=>setSongQuery(event.target.value)}),
-          h("button",{className:"qw-chip",type:"submit",disabled:!songQuery.trim()},"Найти")),
-        searchStatus&&h("p",{className:"qw-search-status",role:"status"},searchStatus==="Ищем треки…"&&h("span",{className:"qw-spinner","aria-hidden":true}),searchStatus),
-        songs.length>0&&h("ul",{className:"qw-search-results"},songs.map(song=>h("li",{key:song.uri},
-          song.cover?h("img",{src:song.cover,alt:"",loading:"lazy"}):h("span",{className:"qw-search-cover"},icon("song")),
-          h("div",null,h("strong",null,song.name),h("small",null,song.artist)),
-          h("button",{className:"qw-chip qw-close",type:"button",title:"Воспроизвести","aria-label":"Воспроизвести "+song.name,onClick:async()=>{
-            try { await Spicetify.Player.playUri(song.uri); } catch { setSearchStatus("Не удалось воспроизвести трек."); }
-          }},icon("play")),
-          h("button",{className:"qw-chip qw-close",type:"button",title:"Волна по песне","aria-label":"Волна по песне "+song.name,disabled:notice==="Запускаем волну…",onClick:()=>launchSongWave(song.uri)},icon("song")))))),
       tab==="Ещё" && h("div",{className:"qw-panel qw-wide"},h("button",{className:"qw-chip qw-song",type:"button",disabled:!/^spotify:track:[A-Za-z0-9]{22}$/.test(track?.uri)||notice==="Запускаем волну…",onClick:async()=>{
           const current=Spicetify.Player.data?.item;
           if(!/^spotify:track:[A-Za-z0-9]{22}$/.test(current?.uri))return;
