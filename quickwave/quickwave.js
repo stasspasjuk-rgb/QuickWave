@@ -59,6 +59,7 @@
   }
 
   function itemTrack(item) {
+    item = item?.item || item;
     const data = item?.itemV2?.data || item?.track?.data || item?.track || item?.data || item;
     const uri = data?.uri || item?.uri || data?.link;
     if (!trackUri.test(uri) || data.isPlayable === false || data.playability?.playable === false) return null;
@@ -503,7 +504,7 @@
           return response.json();
         }).then(release=>{
           if(release.draft||release.prerelease||!/^v\d+\.\d+\.\d+$/.test(release.tag))throw new Error();
-          const installed=[2,5,0];
+          const installed=[2,5,1];
           const remote=release.tag.slice(1).split(".").map(Number);
           const first=remote.findIndex((value,index)=>value!==installed[index]);
           const update=first>=0&&remote[first]>installed[first]?release.tag:null;

@@ -238,3 +238,20 @@ radial-gradient(ellipse 46% calc(39% + var(--qw-pulse,0)*9%) at 60% 63%,var(--wa
 .qw-update-progress::-webkit-progress-value{background:linear-gradient(90deg,var(--wave-a),var(--qw-accent));transition:width .25s}
 .qw-update-mark[data-running=true][data-done=true] svg{animation:none;stroke-dasharray:none}
 @media(prefers-reduced-motion:reduce){.qw-brand,.qw-hero-content h1,.qw-hero-content>.qw-play,.qw-hero-content>.qw-configure{animation:none}}
+
+.qw-full-wave .qw-orb{translate:calc(var(--qw-energy,0)*1.1%) calc(var(--qw-energy,0)*-.7%);scale:calc(1 + var(--qw-energy,0)*.15)}
+.qw-profile-caption{margin-top:-6px}
+.qw-profile-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+.qw-profile-stats>div{display:grid;gap:5px;padding:11px;border:1px solid var(--qw-border);border-radius:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--wave-a) 18%,var(--qw-surface)),var(--qw-surface))}
+.qw-profile-stats strong{font-size:22px;color:var(--qw-accent)}
+.qw-profile-stats span{font-size:10px;line-height:1.4}
+.qw-profile .qw-check{background:var(--qw-surface);border:1px solid var(--qw-border);border-radius:12px;padding:10px}
+.qw-preview-refined{border:1px solid var(--qw-border);min-height:148px}
+.qw-preview-refined[data-background=dark]{background:#15151b}
+.qw-preview-refined[data-background=spotify]{background:var(--spice-main,#181818)}
+.qw-color-controls label{padding:5px 8px;border-radius:10px;border:1px solid var(--qw-border)}
+.qw-intro{position:absolute;inset:50% auto auto 50%;translate:-50% -50%;z-index:4;pointer-events:none;display:flex;align-items:center;gap:12px;color:var(--qw-accent);animation:qw-intro 1s both;font-size:clamp(22px,5vw,48px);white-space:nowrap}
+.qw-hero-content:has(.qw-intro)>:not(.qw-intro){animation:qw-content-reveal .55s .45s both}
+@keyframes qw-intro{0%{opacity:0;transform:translateY(14px) scale(.94);filter:blur(9px)}28%,48%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}100%{opacity:0;transform:translateY(-28px) scale(1.07);filter:blur(4px)}}
+@keyframes qw-content-reveal{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.qw-intro{display:none}.qw-hero-content:has(.qw-intro)>:not(.qw-intro){animation:none}}

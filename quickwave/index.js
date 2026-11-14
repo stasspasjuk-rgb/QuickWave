@@ -2,7 +2,19 @@ function render() {
   return Spicetify.React.createElement(QuickWavePage);
 }
 
-const quickWaveVersion = "2.5.0";
+const quickWaveVersion = "2.5.1";
+
+function waveEnergy(position, segment) {
+  if (!segment) return 0;
+  const peak = Math.max(.015, segment.loudness_max_time || .015);
+  const elapsed = Math.max(0, position-segment.start);
+  const start = segment.loudness_start ?? -60;
+  const max = segment.loudness_max ?? start;
+  const end = segment.loudness_end ?? start;
+  const mix = elapsed < peak ? elapsed/peak : Math.min(1,(elapsed-peak)/Math.max(.03,segment.duration-peak || .2));
+  const db = elapsed < peak ? start+(max-start)*mix : max+(end-max)*mix;
+  return Math.max(0,Math.min(1,(db+45)/45));
+}
 
 function waveBeat(position, beat, loudness, volume) {
   if (!beat) return 0;
@@ -150,6 +162,7 @@ function QuickWavePage() {
     let cancelled=false, frame, beats=[], segments=[], beatIndex=0, segmentIndex=0, lastPos=0;
     const node=orb.current;
     node.style.setProperty("--qw-pulse","0");
+    node.style.setProperty("--qw-energy","0");
     node.style.setProperty("--qw-hue","0deg");
     node.style.setProperty("--qw-drift","0");
     if(/^spotify:track:[A-Za-z0-9]{22}$/.test(track?.uri) && Spicetify.getAudioData){
@@ -164,7 +177,7 @@ function QuickWavePage() {
     }
     const paint=()=>{
       frame=requestAnimationFrame(paint);
-      if(player?.isPlaying?.()!==true||!beats.length)return;
+      if(player?.isPlaying?.()!==true||(!beats.length&&!segments.length))return;
       const position=(player?.getProgress?.()||0)/1000;
       if(position<lastPos || position-lastPos>1){beatIndex=0;segmentIndex=0;}
       lastPos=position;
@@ -172,13 +185,16 @@ function QuickWavePage() {
       while(segments[segmentIndex+1]?.start<=position)segmentIndex++;
       const beat=beats[beatIndex];
       const volume=Math.min(1,Math.max(0,(Number(player?.getVolume?.())||0)));
-      const loudness=segments[segmentIndex]?.loudness_max;
+      const segment=segments[segmentIndex];
+      const energy=waveEnergy(position,segment);
+      const loudness=segment?.loudness_max;
       const nextBeat=beats[beatIndex+1];
-      const gap=nextBeat?nextBeat.start-beat.start:beat.duration;
+      const gap=nextBeat?nextBeat.start-beat.start:beat?.duration;
       const pulse=waveBeat(position,gap>0?{start:beat.start,duration:gap}:beat,loudness,volume);
       const phase=gap>0?Math.max(0,Math.min(1,(position-beat.start)/gap)):0;
       const phrase=beatIndex+phase;
       node.style.setProperty("--qw-pulse",pulse.toFixed(3));
+      node.style.setProperty("--qw-energy",(energy*(.4+volume*.6)).toFixed(3));
       node.style.setProperty("--qw-hue",`${(Math.sin(phrase/13)*34).toFixed(2)}deg`);
       node.style.setProperty("--qw-drift",Math.sin(phrase/7).toFixed(3));
     };
@@ -247,7 +263,7 @@ function QuickWavePage() {
     }},h("svg",{width:20,height:20,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,"aria-hidden":true},h("path",{d:"M9 4H4v5m11-5h5v5m0 6v5h-5M4 15v5h5",strokeLinecap:"round"}))),
     h("dialog",{className:"qw-theme-dialog",ref:themeDialog,"aria-labelledby":"qw-theme-title",onClose:()=>setShowTheme(false)},
       h("h2",{id:"qw-theme-title"},"Оформление"),
-      h("div",{className:"qw-preview"},h("div",{className:"qw-preview-orb","aria-hidden":true}),h("strong",null,"Моя волна")),
+      h("div",{className:"qw-preview qw-preview-refined","data-background":previewBackground},h("div",{className:"qw-preview-orb","aria-hidden":true}),h("strong",null,"Моя волна")),
       h("div",{className:"qw-chips"},chips(Object.fromEntries(waveThemes.map((key,i)=>[key,["Лиловая","Океан","Закат","Лес"][i]])),previewTheme,setPreviewTheme)),
       h("h3",null,"Фон"),
       h("div",{className:"qw-chips"},chips({theme:"Под цвет темы",dark:"Графит",spotify:"Фон Spotify"},previewBackground,setPreviewBackground)),
@@ -277,7 +293,8 @@ function QuickWavePage() {
       h("div", { className: "qw-orb", ref:orb, "data-active": Boolean(track?.uri), "aria-hidden": true },
         h("div",{className:"qw-beat-ring"})),
       h("div", { className: "qw-hero-content" },
-        h("div",{className:"qw-brand"},icon("song"),h("span",null,"QuickWave"),h("small",null,quickWaveVersion)),
+        launching&&h("div",{className:"qw-intro","aria-hidden":true},icon("song"),h("strong",null,"QuickWave")),
+        h("div",{className:"qw-brand"},icon("song"),h("span",null,"QuickWave")),
         h("h1", { id: "qw-title" }, "Моя волна"),
         h("button", { type: "button", className: "qw-play", disabled: !state, onClick: () => {
           setNotice("");
@@ -327,9 +344,12 @@ function QuickWavePage() {
           h("input", { type: "text", value: custom, maxLength: 40, placeholder: "Например, synthwave", "aria-label": "Свой жанр", onChange: event => setCustom(event.target.value) }),
           h("button", { className: "qw-chip", type: "submit", disabled: !custom.trim() || genres.length >= 5 }, "Добавить"),
           h("span", { className: "qw-count" }, `${genres.length} из 5`))),
-        tab==="Профиль" && h("section", { className: "qw-panel qw-wide" },
-          h("h2", null, "Профиль на этом компьютере"),
-          h("p", null, `Треков в профиле: ${state.count} · Учтённых прослушиваний: ${state.plays}`),
+        tab==="Профиль" && h("section", { className: "qw-panel qw-wide qw-profile" },
+          h("h2", null, "Твой профиль"),
+          h("p", {className:"qw-profile-caption"}, "Хранится на этом компьютере"),
+          h("div",{className:"qw-profile-stats"},
+            h("div",null,h("strong",null,state.count),h("span",null,"Треков в профиле")),
+            h("div",null,h("strong",null,state.plays),h("span",null,"Учтено прослушиваний"))),
           h("label", { className: "qw-check" },
             h("input", { type: "checkbox", checked: settings.learn, onChange: event => api.settings({ learn: event.target.checked }) }),
             "Учитывать прослушивания во всём Spotify"),
